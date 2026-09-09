@@ -264,11 +264,20 @@ select.input{ appearance:none; background-image:linear-gradient(45deg,transparen
   font-size:15px; transition:border-color .15s, color .15s;
 }
 .hamburger:hover{ border-color:var(--mint); color:var(--mint); }
+.avatar-chip {
+  position: relative;
+  display: inline-block;
+}
 .welcome-chip{
-  background:var(--mint); color:#04120b;
-  padding:.5em 1.1em; border-radius:var(--radius-sm);
-  font-weight:600; font-size:.85rem;
-  display:flex; align-items:center; gap:10px;
+  background:var(--mint); 
+  color:#04120b;
+  padding:.5em 1.1em; 
+  border-radius:var(--radius-sm);
+  font-weight:600; 
+  font-size:.85rem;
+  display:flex; 
+  align-items:center; 
+  gap:10px;
 }
 .welcome-chip .avatar{
   width:22px; height:22px; border-radius:50%;
@@ -512,4 +521,41 @@ tbody tr:hover{ background:var(--panel); }
   .app-main{ margin-left:0; padding:26px 18px 60px; }
   .section-grid{ grid-template-columns:1fr; }
   .field-row{ grid-template-columns:1fr; }
+}
+
+/* ============================================================
+   Logout button
+   ============================================================ */
+
+   /* Hide logout button by default */
+.logout-btn {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px); 
+  right: 0;
+  z-index: 1000;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: var(--mint);
+  color: #04120b;
+  border: 1px solid var(--mint-25);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.logout-btn::before {
+  content: "";
+  position: absolute;
+  top: -8px; /* Matches the 8px offset */
+  left: 0;
+  right: 0;
+  height: 8px;
+}
+
+/* Reveal button when hovering over the container */
+.avatar-chip:hover .logout-btn {
+  display: block;
 }
