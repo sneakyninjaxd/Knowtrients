@@ -69,3 +69,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
   initDrawer();
   initSidebar();
 });
+
+// Logout button handler
+const logoutBtn = document.getElementById("logoutBtn");
+if(logoutBtn){
+  logoutBtn.addEventListener("click", (e)=>{
+    e.preventDefault();
+    if(confirm("Are you sure you want to log out?")){
+      window.location.href = "../index.html";
+    }
+  })};

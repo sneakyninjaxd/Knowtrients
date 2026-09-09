@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Knowtrients Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-topbar">
+  <div class="app-topbar-left">
+    <button class="hamburger" id="sidebarToggle" aria-label="Toggle menu">☰</button>
+    <a class="brand" href="dashboard.html" style="font-size:1.05rem;"><span class="brand-mark" style="width:24px;height:24px;font-size:13px;">✦</span> Knowtrients</a>
+  </div>
+  <div class="avatar-chip">
+    <div class="welcome-chip">
+      <span class="avatar">👤 </span> Welcome, Admin
+    </div>
+    <button class="logout-btn" type="button"><a href="../index.html">Logout</a></button>
+  </div>
+  
+</header>
+
+<aside class="app-sidebar" id="appSidebar">
+  <div class="sb-group">
+    <h3><a href="accounts.html?type=All">Accounts</a></h3>
+    <ul>
+      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
+      <li><a href="accounts.html?type=User">Users</a></li>
+      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+    </ul>
+  </div>
+  <div class="sb-group">
+    <h3><a href="requests.html?filter=All">Requests</a></h3>
+    <ul>
+      <li><a href="requests.html?filter=Unresolved">Pending Requests</a></li>
+      <li><a href="requests.html?filter=Resolved">Resolved Requests</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="app-main" id="appMain">
+  <div class="page-head">
+    <div>
+      <h1>Dashboard</h1>
+    </div>
+  </div>
+
+  <div class="dash-grid">
+    <div>
+      <div class="card" style="margin-bottom:24px;">
+        <h2>Last Visited</h2>
+        <div class="shortcut-row" id="shortcutRow">
+          <a class="shortcut-pill" href="accounts.html?type=User%20Admin">User Admins</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex-between" style="margin-bottom:14px;">
+          <h2 class="mt-0">Support Requests</h2>
+          <a class="btn btn-ghost btn-sm" href="requests.html">View all</a>
+        </div>
+        <div id="requestList"></div>
+      </div>
+    </div>
+
+    <div class="updates-card">
+      <h2>Updates</h2>
+      <ul class="timeline">
+        <li>
+          <span class="t-time">Today 07:44 PM</span>
+          <span class="t-text">1 new request received!</span>
+        </li>
+        <li>
+          <span class="t-time">Yesterday 05:15 PM</span>
+          <span class="t-text">Request resolved!</span>
+        </li>
+        <li>
+          <span class="t-time">Yesterday 03:28 PM</span>
+          <span class="t-text">8 Requests pending…</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<script src="../js/data.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  const list = document.getElementById("requestList");
+  const preview = REQUESTS.filter(r => r.status === "Unresolved").slice(0,2)
+    .concat(REQUESTS.filter(r => r.status !== "Unresolved").slice(0,0));
+  const toShow = REQUESTS.slice(0,2);
+
+  toShow.forEach(r => {
+    const el = document.createElement("div");
+    el.className = "request-card";
+    el.style.cursor = "pointer";
+    el.addEventListener("click", () => window.location.href = "request-detail.html?id=" + r.id);
+    el.innerHTML = `
+      <div class="req-top">
+        <span class="req-avatar">👤</span>
+        <span class="req-name">${r.name}</span>
+        ${r.isNew ? '<span class="badge badge-new">New!</span>' : ''}
+        <span class="req-time">${r.time}</span>
+      </div>
+      <div class="req-subject">${r.subject}</div>
+      <div class="req-preview">${r.preview}</div>
+      <div class="req-actions">
+        ${r.attachments.length ? `<span class="attachment-chip">📎 ${r.attachments.length} attachment${r.attachments.length>1?'s':''}</span>` : ''}
+        <span class="req-arrow">›</span>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+</script>
+</body>
+</html>
