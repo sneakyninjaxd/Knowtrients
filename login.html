@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Knowtrients</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="brand-mark">✦</span> Knowtrients</a>
+  <div class="topbar-right">
+    <a class="topbar-link" href="index.html#download">Download</a>
+    <a class="pill-login" href="index.html">Back to Home</a>
+  </div>
+</header>
+
+<main class="auth-wrap">
+  <form class="auth-card" id="loginForm" novalidate>
+    <h1>Welcome!</h1>
+    <p class="auth-sub">Enter your details to login</p>
+
+    <div class="field" id="loginTypeField">
+      <label for="loginType">User Type</label>
+      <select class="input" id="loginType" required>
+        <option value="" disabled selected>Select User Type</option>
+        <option value="admin">User Admin</option>
+        <option value="manager">Platform Manager</option>
+      </select>
+      <div class="field-hint">Please select a user type.</div>
+    </div>
+
+    <div class="field" id="loginEmailField">
+      <label for="loginEmail">Email</label>
+      <input class="input" type="email" id="loginEmail" placeholder="example123@gmail.com" required>
+      <div class="field-hint">Enter a valid email address.</div>
+    </div>
+
+    <div class="field" id="loginPasswordField">
+      <label for="loginPassword">Password</label>
+      <input class="input" type="password" id="loginPassword" placeholder="••••••••••" required>
+      <div class="field-hint">Enter your password.</div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block">Login</button>
+
+    <p class="auth-foot">New here? <a href="signup.html">Create Account!</a></p>
+  </form>
+</main>
+
+<script src="js/app.js"></script>
+<script>
+  document.getElementById("loginForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    const type = document.getElementById("loginType");
+    const email = document.getElementById("loginEmail");
+    const password = document.getElementById("loginPassword");
+    let valid = true;
+
+    markFieldError(document.getElementById("loginTypeField"), !type.value); if(!type.value) valid = false;
+    markFieldError(document.getElementById("loginEmailField"), !email.value); if(!email.value) valid = false;
+    markFieldError(document.getElementById("loginPasswordField"), !password.value); if(!password.value) valid = false;
+
+    if(!valid) return;
+
+    // Demo only: any completed form logs the admin in.
+    window.location.href = "dashboard.html";
+  });
+</script>
+</body>
+</html>

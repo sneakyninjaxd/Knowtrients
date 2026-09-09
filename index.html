@@ -1,18 +1,95 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Reflective Journal</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowtrients — Know your nutrients, know your health</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <h1>Reflective Journal</h1>
 
-    <p>
-        Click the button below to view FYP-26-S3-17 reflective journal.
-    </p>
+<header class="topbar">
+  <button class="brand" id="brandTrigger" aria-label="Open menu">
+    <span class="brand-mark">✦</span> Knowtrients
+  </button>
+  <div class="topbar-right">
+    <a class="topbar-link" href="#download">Download</a>
+    <a class="pill-login" href="login.html">Login</a>
+  </div>
+</header>
 
-    <a href="https://drive.google.com/drive/folders/1-UsIibTwPW6TmCxe6itxL5oHNPLXvvNx?usp=drive_link" target="_blank">
-        <button>Open Reflective Journal</button>
-    </a>
+<div class="drawer-scrim" id="drawerScrim"></div>
+<nav class="drawer" id="drawer" aria-label="Site navigation">
+  <div class="drawer-section">
+    <h3>Home</h3>
+    <ul>
+      <li><a href="#about">About Us</a></li>
+      <li><a href="#download">Download</a></li>
+      <li><a href="#preview">App Preview</a></li>
+    </ul>
+  </div>
+  <div class="drawer-section">
+    <h3>Submissions</h3>
+    <ul>
+      <li><a href="#" title="Coming soon">Submission Drive</a></li>
+      <li><a href="#" title="Coming soon">Github</a></li>
+    </ul>
+  </div>
+</nav>
 
+<main>
+  <section class="hero">
+    <div>
+      <h1>Know your nutrients,<br>know your health</h1>
+      <p class="lede">Knowtrients turns every meal into a clear picture of what's actually going into your body — so you can make small, informed choices that add up.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#download">Download the app</a>
+        <a class="btn btn-ghost" href="login.html">Admin login</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="about">
+    <div class="eyebrow">About us</div>
+    <h2>Built for people who want to understand their plate</h2>
+    <p style="max-width:60ch;">Knowtrients started as a simple question: why is it so hard to know what's actually in our food? Our team of nutritionists and engineers built a scanner and tracker that turns nutrition labels and home-cooked meals into plain, useful insight.</p>
+    <div class="section-grid">
+      <div class="feature-card">
+        <h4>Scan anything</h4>
+        <p>Point your camera at a label or a plate and get a nutrient breakdown in seconds.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Track what matters</h4>
+        <p>Follow the nutrients relevant to your goals, not just calories.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Talk to real support</h4>
+        <p>Our support team reviews and replies to every request personally.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download">
+    <div class="eyebrow">Download</div>
+    <h2>Get Knowtrients on your phone</h2>
+    <p style="max-width:56ch;">Available soon on iOS and Android. App store links and screenshots will live here.</p>
+    <div class="hero-cta">
+      <a class="btn btn-outline" href="#" title="Coming soon">App Store</a>
+      <a class="btn btn-outline" href="#" title="Coming soon">Google Play</a>
+    </div>
+  </section>
+
+  <section class="section" id="preview">
+    <div class="eyebrow">App preview</div>
+    <h2>A closer look, coming soon</h2>
+    <p style="max-width:56ch;">Screens and a walkthrough of the mobile app will be added to this section.</p>
+  </section>
+</main>
+
+<div class="footer-note">© 2026 Knowtrients. This site is a work in progress.</div>
+
+<script src="js/app.js"></script>
 </body>
 </html>
