@@ -559,3 +559,107 @@ tbody tr:hover{ background:var(--panel); }
 .avatar-chip:hover .logout-btn {
   display: block;
 }
+
+/* ---- Added for live data: form errors, detail pages, stat tiles ---- */
+
+.form-error{
+  background:rgba(226,99,92,.1);
+  border:1px solid rgba(226,99,92,.35);
+  color:var(--danger);
+  border-radius:var(--radius-sm);
+  padding:10px 14px;
+  font-size:.88rem;
+  margin-bottom:16px;
+}
+
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:16px;
+  margin-bottom:24px;
+}
+.stat-tile{
+  background:var(--panel);
+  border:1px solid var(--mint-25);
+  border-radius:var(--radius-md);
+  padding:18px 20px;
+}
+.stat-tile .stat-value{
+  font-size:1.9rem;
+  font-weight:700;
+  color:var(--mint);
+  line-height:1.1;
+}
+.stat-tile .stat-label{
+  font-size:.82rem;
+  color:var(--muted);
+  margin-top:6px;
+}
+
+.kv-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:14px 24px;
+}
+.kv-item .kv-label{
+  font-size:.78rem;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.kv-item .kv-value{
+  font-size:.98rem;
+  margin-top:3px;
+  word-break:break-word;
+}
+
+.detail-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:20px;
+}
+
+.reply-box{
+  width:100%;
+  min-height:120px;
+  background:var(--panel-2,rgba(255,255,255,.03));
+  border:1px solid var(--mint-25);
+  border-radius:var(--radius-sm);
+  color:var(--ink);
+  padding:12px 14px;
+  font-family:inherit;
+  font-size:.92rem;
+  resize:vertical;
+}
+.reply-box:focus{ outline:none; border-color:var(--mint); }
+
+.message-body{
+  white-space:pre-wrap;
+  line-height:1.6;
+  font-size:.95rem;
+}
+
+.reply-shown{
+  background:var(--mint-10);
+  border-left:3px solid var(--mint);
+  border-radius:var(--radius-sm);
+  padding:14px 16px;
+  margin-top:16px;
+}
+.reply-shown .reply-meta{
+  font-size:.78rem;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+
+.tag-chip{
+  display:inline-block;
+  background:var(--mint-10);
+  border:1px solid var(--mint-25);
+  color:var(--mint);
+  border-radius:999px;
+  padding:3px 11px;
+  font-size:.8rem;
+  margin:0 6px 6px 0;
+}
