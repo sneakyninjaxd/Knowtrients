@@ -76,6 +76,8 @@ if(logoutBtn){
   logoutBtn.addEventListener("click", (e)=>{
     e.preventDefault();
     if(confirm("Are you sure you want to log out?")){
-      window.location.href = "../index.html";
+      // Clear the stored token, or the next visit walks straight back in.
+      if(typeof Auth !== "undefined") Auth.logout();
+      window.location.href = "../login.html";
     }
   })};

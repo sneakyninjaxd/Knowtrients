@@ -3,12 +3,186 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Accounts — Knowtrients Admin</title>
+<title>View Account — Knowtrients Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <p> view account</p>
+<header class="app-topbar">
+  <div class="app-topbar-left">
+    <button class="hamburger" id="sidebarToggle" aria-label="Toggle menu">☰</button>
+    <a class="brand" href="dashboard.html" style="font-size:1.05rem;"><span class="brand-mark" style="width:24px;height:24px;font-size:13px;">✦</span> Knowtrients</a>
+  </div>
+  <div class="welcome-chip">
+    <span class="avatar">👤</span> Welcome, Admin
+  </div>
+</header>
+
+<aside class="app-sidebar" id="appSidebar">
+  <div class="sb-group">
+    <h3><a href="accounts.html?type=All">Accounts</a></h3>
+    <ul>
+      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
+      <li><a href="accounts.html?type=User">Users</a></li>
+      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+    </ul>
+  </div>
+  <div class="sb-group">
+    <h3><a href="requests.html?filter=All">Requests</a></h3>
+    <ul>
+      <li><a href="requests.html?filter=Unresolved">Pending Requests</a></li>
+      <li><a href="requests.html?filter=Resolved">Resolved Requests</a></li>
+    </ul>
+  </div>
+</aside>
+
+
+<main class="app-main" id="appMain">
+  <div class="page-head">
+    <div>
+      <a class="btn btn-ghost btn-sm" href="accounts.html?type=User">‹ Back to Accounts</a>
+      <h1 id="accountName" style="margin-top:12px;">Loading…</h1>
+    </div>
+  </div>
+
+  <div id="pageError" class="form-error" style="display:none;"></div>
+
+  <div id="accountContent" style="display:none;">
+    <div class="card" style="margin-bottom:24px;">
+      <h2>Account</h2>
+      <div class="kv-grid" id="accountGrid"></div>
+      <div class="detail-actions" id="accountActions"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px;">
+      <h2>Health Profile</h2>
+      <div class="kv-grid" id="profileGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>Activity</h2>
+      <div class="stat-grid" id="activityGrid" style="margin-bottom:0;"></div>
+    </div>
+  </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  requireAuth();
+
+  const accountId = new URLSearchParams(window.location.search).get("id");
+  const nameEl = document.getElementById("accountName");
+  const errorEl = document.getElementById("pageError");
+  const contentEl = document.getElementById("accountContent");
+
+  function showError(message){
+    errorEl.textContent = message;
+    errorEl.style.display = "block";
+    nameEl.textContent = "Account";
+  }
+
+  function kv(label, value){
+    return `<div class="kv-item">
+      <div class="kv-label">${escapeHtml(label)}</div>
+      <div class="kv-value">${escapeHtml(value ?? "—")}</div>
+    </div>`;
+  }
+
+  function tile(value, label){
+    return `<div class="stat-tile">
+      <div class="stat-value">${escapeHtml(value)}</div>
+      <div class="stat-label">${escapeHtml(label)}</div>
+    </div>`;
+  }
+
+  function chips(values){
+    if(!values || !values.length) return "—";
+    return values.map(v => `<span class="tag-chip">${escapeHtml(v)}</span>`).join("");
+  }
+
+  let account = null;
+
+  async function load(){
+    if(!accountId){ showError("No account specified."); return; }
+
+    try {
+      account = await Accounts.get(accountId);
+    } catch (err) {
+      showError(err.message);
+      return;
+    }
+
+    nameEl.textContent = `${account.first_name} ${account.last_name}`;
+    contentEl.style.display = "block";
+
+    document.getElementById("accountGrid").innerHTML = [
+      kv("User ID", account.display_id),
+      kv("Email", account.email),
+      kv("User Type", account.user_type),
+      kv("Status", account.status),
+      kv("Joined", formatDate(account.created_at)),
+      kv("Onboarding", account.onboarding_complete ? "Complete" : "Incomplete"),
+    ].join("");
+
+    // Health values render as chips because they are multi-select in the app.
+    document.getElementById("profileGrid").innerHTML = [
+      kv("Age", account.age ? `${account.age} years` : null),
+      kv("Gender", account.gender),
+      kv("Height", account.height_cm ? `${account.height_cm} cm` : null),
+      kv("Weight", account.weight_kg ? `${account.weight_kg} kg` : null),
+      kv("BMI", account.bmi),
+      kv("Activity Level", account.activity_level),
+      `<div class="kv-item"><div class="kv-label">Goals</div>
+        <div class="kv-value">${chips(account.goals)}</div></div>`,
+      `<div class="kv-item"><div class="kv-label">Dietary Preferences</div>
+        <div class="kv-value">${chips(account.dietary_preferences)}</div></div>`,
+    ].join("");
+
+    document.getElementById("activityGrid").innerHTML = [
+      tile(account.food_log_count, "Food log entries"),
+      tile(account.recommendation_count, "Recommendations"),
+      tile(account.open_request_count, "Open requests"),
+      tile(account.last_active ? formatDate(account.last_active) : "Never", "Last logged"),
+    ].join("");
+
+    renderActions();
+  }
+
+  function renderActions(){
+    const container = document.getElementById("accountActions");
+    const suspending = account.status === "Active";
+
+    container.innerHTML = `
+      <button class="btn ${suspending ? "btn-danger-outline" : "btn-outline"}" id="statusBtn">
+        ${suspending ? "Suspend Account" : "Reactivate Account"}
+      </button>`;
+
+    document.getElementById("statusBtn").addEventListener("click", async () => {
+      const verb = suspending ? "suspend" : "reactivate";
+      if(!confirm(`Are you sure you want to ${verb} this account?`)) return;
+
+      const btn = document.getElementById("statusBtn");
+      btn.disabled = true;
+      btn.textContent = "Working…";
+
+      try {
+        const updated = await Accounts.setStatus(account.id, suspending ? false : true);
+        account.status = updated.status;
+        document.getElementById("accountGrid").children[3]
+          .querySelector(".kv-value").textContent = updated.status;
+        showToast(`Account ${verb}d.`);
+        renderActions();
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        renderActions();
+      }
+    });
+  }
+
+  load();
+</script>
 </body>
 </html>

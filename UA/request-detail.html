@@ -3,12 +3,193 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Requests — Knowtrients Admin</title>
+<title>Request Details — Knowtrients Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-    <p>Request Details </p>
+<header class="app-topbar">
+  <div class="app-topbar-left">
+    <button class="hamburger" id="sidebarToggle" aria-label="Toggle menu">☰</button>
+    <a class="brand" href="dashboard.html" style="font-size:1.05rem;"><span class="brand-mark" style="width:24px;height:24px;font-size:13px;">✦</span> Knowtrients</a>
+  </div>
+  <div class="welcome-chip">
+    <span class="avatar">👤</span> Welcome, Admin
+  </div>
+</header>
+
+<aside class="app-sidebar" id="appSidebar">
+  <div class="sb-group">
+    <h3><a href="accounts.html?type=All">Accounts</a></h3>
+    <ul>
+      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
+      <li><a href="accounts.html?type=User">Users</a></li>
+      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+    </ul>
+  </div>
+  <div class="sb-group">
+    <h3><a href="requests.html?filter=All">Requests</a></h3>
+    <ul>
+      <li><a href="requests.html?filter=Unresolved">Pending Requests</a></li>
+      <li><a href="requests.html?filter=Resolved">Resolved Requests</a></li>
+    </ul>
+  </div>
+</aside>
+
+
+<main class="app-main" id="appMain">
+  <div class="page-head">
+    <div>
+      <a class="btn btn-ghost btn-sm" href="requests.html?filter=All">‹ Back to Requests</a>
+      <h1 id="requestSubject" style="margin-top:12px;">Loading…</h1>
+    </div>
+  </div>
+
+  <div id="pageError" class="form-error" style="display:none;"></div>
+
+  <div id="requestContent" style="display:none;">
+    <div class="card" style="margin-bottom:24px;">
+      <div class="kv-grid" id="requestMeta"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px;">
+      <h2>Message</h2>
+      <div class="message-body" id="requestBody"></div>
+      <div id="existingReply"></div>
+    </div>
+
+    <div class="card" id="replyCard">
+      <h2 id="replyHeading">Reply</h2>
+      <textarea class="reply-box" id="replyBody"
+        placeholder="Write your response to the user…"></textarea>
+      <div class="detail-actions">
+        <button class="btn btn-primary" id="sendResolveBtn">Send &amp; Resolve</button>
+        <button class="btn btn-outline" id="sendOnlyBtn">Send Without Resolving</button>
+        <button class="btn btn-ghost" id="toggleStatusBtn"></button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  requireAuth();
+
+  const requestId = new URLSearchParams(window.location.search).get("id");
+  const subjectEl = document.getElementById("requestSubject");
+  const errorEl = document.getElementById("pageError");
+  const contentEl = document.getElementById("requestContent");
+
+  let request = null;
+
+  function showError(message){
+    errorEl.textContent = message;
+    errorEl.style.display = "block";
+    subjectEl.textContent = "Request";
+  }
+
+  function kv(label, value){
+    return `<div class="kv-item">
+      <div class="kv-label">${escapeHtml(label)}</div>
+      <div class="kv-value">${escapeHtml(value ?? "—")}</div>
+    </div>`;
+  }
+
+  function render(){
+    subjectEl.textContent = request.subject;
+    contentEl.style.display = "block";
+
+    document.getElementById("requestMeta").innerHTML = [
+      kv("Request ID", request.display_id),
+      `<div class="kv-item"><div class="kv-label">From</div>
+        <div class="kv-value">
+          <a href="view-account.html?id=${request.user_id}" style="color:var(--mint);">
+            ${escapeHtml(request.user_name || "Unknown")}
+          </a>
+        </div></div>`,
+      kv("Email", request.user_email),
+      kv("Category", categoryLabel(request.category)),
+      `<div class="kv-item"><div class="kv-label">Status</div>
+        <div class="kv-value"><span class="status-dot status-${request.status}">
+          ${statusLabel(request.status)}</span></div></div>`,
+      kv("Received", formatDateTime(request.created_at)),
+    ].join("");
+
+    document.getElementById("requestBody").textContent = request.body;
+
+    // An existing reply is shown above the compose box, so an admin editing a
+    // previous response can see what was already sent.
+    const replyEl = document.getElementById("existingReply");
+    if (request.reply) {
+      replyEl.innerHTML = `<div class="reply-shown">
+        <div class="reply-meta">Replied by ${escapeHtml(request.handled_by_name || "an admin")}
+          · ${escapeHtml(formatDateTime(request.replied_at))}</div>
+        <div class="message-body">${escapeHtml(request.reply)}</div>
+      </div>`;
+      document.getElementById("replyHeading").textContent = "Update Reply";
+      document.getElementById("replyBody").value = request.reply;
+    } else {
+      replyEl.innerHTML = "";
+    }
+
+    const toggleBtn = document.getElementById("toggleStatusBtn");
+    toggleBtn.textContent =
+      request.status === "resolved" ? "Reopen Request" : "Mark Resolved";
+  }
+
+  async function send(resolve){
+    const body = document.getElementById("replyBody").value.trim();
+    if(!body){ alert("Write a reply before sending."); return; }
+
+    const buttons = document.querySelectorAll("#replyCard button");
+    buttons.forEach(b => b.disabled = true);
+
+    try {
+      request = await Requests.reply(request.id, body, resolve);
+      render();
+      showToast(resolve ? "Reply sent and request resolved." : "Reply sent.");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      buttons.forEach(b => b.disabled = false);
+    }
+  }
+
+  async function toggleStatus(){
+    const next = request.status === "resolved" ? "unresolved" : "resolved";
+    const buttons = document.querySelectorAll("#replyCard button");
+    buttons.forEach(b => b.disabled = true);
+
+    try {
+      request = await Requests.setStatus(request.id, next);
+      render();
+      showToast(next === "resolved" ? "Request resolved." : "Request reopened.");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      buttons.forEach(b => b.disabled = false);
+    }
+  }
+
+  async function load(){
+    if(!requestId){ showError("No request specified."); return; }
+    try {
+      request = await Requests.get(requestId);
+      render();
+      document.getElementById("sendResolveBtn")
+        .addEventListener("click", () => send(true));
+      document.getElementById("sendOnlyBtn")
+        .addEventListener("click", () => send(false));
+      document.getElementById("toggleStatusBtn")
+        .addEventListener("click", toggleStatus);
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  load();
+</script>
 </body>
 </html>

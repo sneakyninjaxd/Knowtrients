@@ -71,51 +71,71 @@
   <div id="emptyState" class="empty-hint" style="display:none;">No requests match your search.</div>
 </main>
 
-<script src="../js/data.js"></script>
+<script src="../js/api.js"></script>
 <script src="../js/app.js"></script>
 <script>
+  requireAuth();
+
   const params = new URLSearchParams(window.location.search);
-  const initialType = params.get("filter") || "All";
+  const initialFilter = params.get("filter") || "All";
   const typeFilter = document.getElementById("typeFilter");
   const searchInput = document.getElementById("searchInput");
   const body = document.getElementById("requestsBody");
   const emptyState = document.getElementById("emptyState");
 
-  typeFilter.value = initialType;
+  typeFilter.value = initialFilter;
 
-  // highlight matching sidebar link
-  document.querySelectorAll('.sb-group r[data-type]').forEach(r=>{
-    if(r.dataset.type === initialType) r.classList.add("active");
-  });
-
-  function render(){
-    const type = typeFilter.value;
-    const query = searchInput.value.trim().toLowerCase();
-    const rows = REQUESTS.filter(r => r.status === type).filter(r => {
-      if(!query) return true;
-      return [r.time, r.id, r.userID, r.name, r.email, r.status].join(" ").toLowerCase().includes(query);
-    });
-
-    body.innerHTML = "";
-    rows.forEach(r => {
-      const tr = document.createElement("tr");
-      tr.addEventListener("click", () => window.location.href = "request-detail.html?id=" + r.id);
-      tr.innerHTML = `
-        <td>${r.time}</td>
-        <td class="mono-id">${r.id}</td>
-        <td>${r.userID}</td>
-        <td>${r.name}</td>
-        <td class="email-cell">${r.email}</td>
-        <td><span class="status-dot status-${r.status.toLowerCase()}">${r.status}</span></td>
-      `;
-      body.appendChild(tr);
-    });
-
-    emptyState.style.display = rows.length ? "none" : "block";
+  function showRow(text, isError){
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;${
+      isError ? "color:var(--danger);" : "color:var(--muted);"
+    }">${escapeHtml(text)}</td></tr>`;
+    emptyState.style.display = "none";
   }
 
-  typeFilter.addEventListener("change", render);
-  searchInput.addEventListener("input", render);
+  async function render(){
+    showRow("Loading requests…", false);
+    try {
+      const rows = await Requests.list({
+        status: typeFilter.value,
+        q: searchInput.value.trim(),
+      });
+
+      body.innerHTML = "";
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.style.cursor = "pointer";
+        tr.addEventListener("click", () =>
+          window.location.href = "request-detail.html?id=" + r.id);
+        tr.innerHTML = `
+          <td>${escapeHtml(formatDateTime(r.created_at))}</td>
+          <td class="mono-id">${escapeHtml(r.display_id || r.id)}</td>
+          <td class="mono-id">${escapeHtml(r.user_display_id || r.user_id)}</td>
+          <td>${escapeHtml(r.user_name || "—")}</td>
+          <td class="email-cell">${escapeHtml(r.user_email || "—")}</td>
+          <td><span class="status-dot status-${r.status}">${statusLabel(r.status)}</span></td>
+        `;
+        body.appendChild(tr);
+      });
+
+      emptyState.style.display = rows.length ? "none" : "block";
+    } catch (err) {
+      showRow(err.message, true);
+    }
+  }
+
+  let searchTimer;
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(render, 300);
+  });
+
+  typeFilter.addEventListener("change", () => {
+    const url = new URL(window.location);
+    url.searchParams.set("filter", typeFilter.value);
+    window.history.replaceState({}, "", url);
+    render();
+  });
+
   render();
 </script>
 </body>

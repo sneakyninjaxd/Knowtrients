@@ -49,73 +49,130 @@
     </div>
   </div>
 
+  <div id="pageError" class="form-error" style="display:none;"></div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
   <div class="dash-grid">
     <div>
       <div class="card" style="margin-bottom:24px;">
-        <h2>Last Visited</h2>
+        <h2>Accounts</h2>
         <div class="shortcut-row" id="shortcutRow">
+          <a class="shortcut-pill" href="accounts.html?type=User">Users</a>
           <a class="shortcut-pill" href="accounts.html?type=User%20Admin">User Admins</a>
+          <a class="shortcut-pill" href="accounts.html?type=Platform%20Manager">Platform Managers</a>
         </div>
       </div>
 
       <div class="card">
         <div class="flex-between" style="margin-bottom:14px;">
-          <h2 class="mt-0">Support Requests</h2>
-          <a class="btn btn-ghost btn-sm" href="requests.html">View all</a>
+          <h2 class="mt-0">Pending Support Requests</h2>
+          <a class="btn btn-ghost btn-sm" href="requests.html?filter=All">View all</a>
         </div>
         <div id="requestList"></div>
       </div>
     </div>
 
     <div class="updates-card">
-      <h2>Updates</h2>
-      <ul class="timeline">
-        <li>
-          <span class="t-time">Today 07:44 PM</span>
-          <span class="t-text">1 new request received!</span>
-        </li>
-        <li>
-          <span class="t-time">Yesterday 05:15 PM</span>
-          <span class="t-text">Request resolved!</span>
-        </li>
-        <li>
-          <span class="t-time">Yesterday 03:28 PM</span>
-          <span class="t-text">8 Requests pending…</span>
-        </li>
-      </ul>
+      <h2>At a Glance</h2>
+      <ul class="timeline" id="glanceList"></ul>
     </div>
   </div>
 </main>
 
-<script src="../js/data.js"></script>
+<script src="../js/api.js"></script>
 <script src="../js/app.js"></script>
 <script>
-  const list = document.getElementById("requestList");
-  const preview = REQUESTS.filter(r => r.status === "Unresolved").slice(0,2)
-    .concat(REQUESTS.filter(r => r.status !== "Unresolved").slice(0,0));
-  const toShow = REQUESTS.slice(0,2);
+  requireAuth();
 
-  toShow.forEach(r => {
-    const el = document.createElement("div");
-    el.className = "request-card";
-    el.style.cursor = "pointer";
-    el.addEventListener("click", () => window.location.href = "request-detail.html?id=" + r.id);
-    el.innerHTML = `
-      <div class="req-top">
-        <span class="req-avatar">👤</span>
-        <span class="req-name">${r.name}</span>
-        ${r.isNew ? '<span class="badge badge-new">New!</span>' : ''}
-        <span class="req-time">${r.time}</span>
-      </div>
-      <div class="req-subject">${r.subject}</div>
-      <div class="req-preview">${r.preview}</div>
-      <div class="req-actions">
-        ${r.attachments.length ? `<span class="attachment-chip">📎 ${r.attachments.length} attachment${r.attachments.length>1?'s':''}</span>` : ''}
-        <span class="req-arrow">›</span>
-      </div>
-    `;
-    list.appendChild(el);
-  });
+  const errorEl = document.getElementById("pageError");
+  const statGrid = document.getElementById("statGrid");
+  const requestList = document.getElementById("requestList");
+  const glanceList = document.getElementById("glanceList");
+
+  // Greet the signed-in admin by name rather than a generic label.
+  const user = Session.user;
+  if (user) {
+    const chip = document.querySelector(".welcome-chip");
+    if (chip) chip.innerHTML =
+      `<span class="avatar">\u{1F464}</span> Welcome, ${escapeHtml(user.first_name)}`;
+  }
+
+  function tile(value, label){
+    return `<div class="stat-tile">
+      <div class="stat-value">${escapeHtml(value)}</div>
+      <div class="stat-label">${escapeHtml(label)}</div>
+    </div>`;
+  }
+
+  async function loadStats(){
+    statGrid.innerHTML = `<div class="empty-hint">Loading…</div>`;
+    try {
+      const s = await Dashboard.summary();
+
+      statGrid.innerHTML = [
+        tile(s.total_users, "Total users"),
+        tile(s.active_users, "Active users"),
+        tile(s.suspended_users, "Suspended"),
+        tile(s.unresolved_requests, "Pending requests"),
+      ].join("");
+
+      glanceList.innerHTML = [
+        [`${s.new_users_7d} new account${s.new_users_7d === 1 ? "" : "s"}`, "Last 7 days"],
+        [`${s.logs_today} food log${s.logs_today === 1 ? "" : "s"} recorded`, "Today"],
+        [`${s.recommendations_today} recommendation${s.recommendations_today === 1 ? "" : "s"} served`, "Today"],
+        [`${s.resolved_requests} request${s.resolved_requests === 1 ? "" : "s"} resolved`, "All time"],
+        [`${s.user_admins} user admin${s.user_admins === 1 ? "" : "s"}, ${s.platform_managers} platform manager${s.platform_managers === 1 ? "" : "s"}`, "Staff"],
+      ].map(([text, when]) => `<li>
+        <span class="t-time">${escapeHtml(when)}</span>
+        <span class="t-text">${escapeHtml(text)}</span>
+      </li>`).join("");
+    } catch (err) {
+      statGrid.innerHTML = "";
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  }
+
+  async function loadRequests(){
+    renderMessage(requestList, "Loading requests…");
+    try {
+      const rows = await Requests.list({ status: "unresolved" });
+
+      if (!rows.length) {
+        renderMessage(requestList, "No pending requests. All caught up.");
+        return;
+      }
+
+      requestList.innerHTML = "";
+      rows.slice(0, 4).forEach(r => {
+        const el = document.createElement("div");
+        el.className = "request-card";
+        el.style.cursor = "pointer";
+        el.addEventListener("click", () =>
+          window.location.href = "request-detail.html?id=" + r.id);
+        el.innerHTML = `
+          <div class="req-top">
+            <span class="req-avatar">\u{1F464}</span>
+            <span class="req-name">${escapeHtml(r.user_name || "Unknown")}</span>
+            <span class="req-time">${escapeHtml(formatDateTime(r.created_at))}</span>
+          </div>
+          <div class="req-subject">${escapeHtml(r.subject)}</div>
+          <div class="req-preview">${escapeHtml(r.body.slice(0, 90))}${r.body.length > 90 ? "…" : ""}</div>
+          <div class="req-actions">
+            <span class="attachment-chip">${escapeHtml(categoryLabel(r.category))}</span>
+            <span class="req-arrow">\u203A</span>
+          </div>
+        `;
+        requestList.appendChild(el);
+      });
+    } catch (err) {
+      renderMessage(requestList, err.message, true);
+    }
+  }
+
+  loadStats();
+  loadRequests();
 </script>
 </body>
 </html>
