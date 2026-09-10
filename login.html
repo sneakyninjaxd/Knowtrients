@@ -21,7 +21,7 @@
 <main class="auth-wrap">
   <form class="auth-card" id="loginForm" novalidate>
     <h1>Welcome!</h1>
-    <p class="auth-sub">Enter your details to login</p>
+    <p class="auth-sub">This login page is only for authorized users.</p>
 
     <div id="loginError" class="form-error" style="display:none;"></div>
 
@@ -39,7 +39,6 @@
 
     <button type="submit" class="btn btn-primary btn-block">Login</button>
 
-    <p class="auth-foot">New here? <a href="signup.html">Create Account!</a></p>
   </form>
 </main>
 
@@ -81,5 +80,11 @@
     }
   });
 </script>
+
+<!-- Connects to mock-api.js. Comment this line out to use the real API -->
+<script src="js/api.js"></script>
+<script src="js/mock-api.js"></script>     
+
+
 </body>
 </html>
