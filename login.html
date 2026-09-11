@@ -43,6 +43,8 @@
 </main>
 
 <script src="js/api.js"></script>
+<!-- Mock backend: delete the next line to use the real API -->
+<!-- <script src="js/mock-api.js"></script> -->
 <script src="js/app.js"></script>
 <script>
   const form = document.getElementById("loginForm");
@@ -50,7 +52,9 @@
   const errorBox = document.getElementById("loginError");
 
   // Already signed in — skip the form.
-  if (Session.isLoggedIn) window.location.href = "UA/dashboard.html";
+  if (Session.isLoggedIn && homeFor(Session.user?.role)) {
+    window.location.href = homeFor(Session.user.role);
+  }
 
   form.addEventListener("submit", async function(e){
     e.preventDefault();
@@ -70,8 +74,8 @@
     submitBtn.textContent = "Logging in…";
 
     try {
-      await Auth.login(email.value.trim(), password.value);
-      window.location.href = "UA/dashboard.html";
+      const user = await Auth.login(email.value.trim(), password.value);
+      window.location.href = homeFor(user.role);
     } catch (err) {
       errorBox.textContent = err.message;
       errorBox.style.display = "block";
@@ -80,11 +84,6 @@
     }
   });
 </script>
-
-<!-- Connects to mock-api.js. Comment this line out to use the real API -->
-<script src="js/api.js"></script>
-<script src="js/mock-api.js"></script>     
-
 
 </body>
 </html>

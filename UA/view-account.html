@@ -14,8 +14,11 @@
     <button class="hamburger" id="sidebarToggle" aria-label="Toggle menu">☰</button>
     <a class="brand" href="dashboard.html" style="font-size:1.05rem;"><span class="brand-mark" style="width:24px;height:24px;font-size:13px;">✦</span> Knowtrients</a>
   </div>
-  <div class="welcome-chip">
-    <span class="avatar">👤</span> Welcome, Admin
+  <div class="avatar-chip">
+    <a class="welcome-chip" href="my-account.html" title="My Account">
+      <span class="avatar">👤 </span> Welcome, Admin
+    </a>
+    <button class="logout-btn" type="button">Logout</button>
   </div>
 </header>
 
@@ -41,7 +44,7 @@
 <main class="app-main" id="appMain">
   <div class="page-head">
     <div>
-      <a class="btn btn-ghost btn-sm" href="accounts.html?type=User">‹ Back to Accounts</a>
+      <a class="btn btn-ghost btn-sm" href="accounts.html?type=All">‹ Back to Accounts</a>
       <h1 id="accountName" style="margin-top:12px;">Loading…</h1>
     </div>
   </div>
@@ -55,35 +58,97 @@
       <div class="detail-actions" id="accountActions"></div>
     </div>
 
-    <div class="card" style="margin-bottom:24px;">
-      <h2>Health Profile</h2>
-      <div class="kv-grid" id="profileGrid"></div>
+    <!-- Health Profile and Activity only apply to app users -->
+    <div id="appUserSections">
+      <div class="card" style="margin-bottom:24px;">
+        <h2>Health Profile</h2>
+        <div class="kv-grid" id="profileGrid"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <h2>Activity</h2>
+        <div class="stat-grid" id="activityGrid" style="margin-bottom:0;"></div>
+      </div>
     </div>
 
-    <div class="card">
-      <h2>Activity</h2>
-      <div class="stat-grid" id="activityGrid" style="margin-bottom:0;"></div>
+    <!-- Change user type (shown only to roles allowed to do it) -->
+    <div class="card" id="roleCard" style="margin-bottom:24px;display:none;">
+      <h2>User Type</h2>
+      <div class="role-row">
+        <select class="input select-compact" id="roleSelect">
+          <option value="user">User</option>
+          <option value="user_admin">User Admin</option>
+          <option value="platform_manager">Platform Manager</option>
+        </select>
+        <button class="btn btn-primary" id="saveRoleBtn" disabled>Change User Type</button>
+      </div>
+      <p class="card-note">The new user type takes effect the next time this person logs in.</p>
     </div>
+
+    <!-- Permanent deletion (shown only to roles allowed to do it) -->
+    <div class="card danger-card" id="deleteCard" style="display:none;">
+      <h2>Delete Account</h2>
+      <p style="font-size:.88rem;margin-bottom:0;">
+        Permanently removes this account and its data from the database. This cannot be undone.
+      </p>
+      <div class="detail-actions">
+        <button class="btn btn-danger-outline" id="openDeleteBtn">Delete Account</button>
+      </div>
+    </div>
+
+    <p class="card-note" id="selfNote" style="display:none;">
+      This is your own account. Edit your name and password from
+      <a href="my-account.html" style="color:var(--mint);">My Account</a>.
+    </p>
   </div>
 </main>
 
+<!-- Delete confirmation -->
+<div class="modal-scrim" id="deleteModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+    <h3 id="deleteTitle">Delete this account?</h3>
+    <p class="modal-warn">This permanently deletes the account and cannot be undone.</p>
+    <div class="modal-body">
+      <div><b>Name:</b> <span id="delName"></span></div>
+      <div><b>User ID:</b> <span id="delId"></span></div>
+      <div><b>Email:</b> <span id="delEmail"></span></div>
+    </div>
+    <div class="field" id="delConfirmField">
+      <label for="delConfirm">Type the email address to confirm</label>
+      <input class="input" id="delConfirm" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancelDeleteBtn" type="button">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn" type="button" disabled>Delete Permanently</button>
+    </div>
+  </div>
+</div>
+
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
-<script src="../js/mock-api.js"></script>
+<!-- <script src="../js/mock-api.js"></script> -->
 <script src="../js/app.js"></script>
 
 <script>
-  requireAuth();
+  requireRole("user_admin");
+
+  /* Account management (suspend, change user type, delete) belongs to User
+     Admins only. This just decides which controls appear; the backend is
+     what actually enforces it. */
+  const CAN_MANAGE_ACCOUNTS = Session.user?.role === "user_admin";
+
+  const ROLE_LABELS = { user: "User", user_admin: "User Admin", platform_manager: "Platform Manager" };
 
   const accountId = new URLSearchParams(window.location.search).get("id");
-  const nameEl = document.getElementById("accountName");
-  const errorEl = document.getElementById("pageError");
-  const contentEl = document.getElementById("accountContent");
+  const $ = (id) => document.getElementById(id);
+  const me = Session.user || {};
+
+  let account = null;
 
   function showError(message){
-    errorEl.textContent = message;
-    errorEl.style.display = "block";
-    nameEl.textContent = "Account";
+    $("pageError").textContent = message;
+    $("pageError").style.display = "block";
+    $("accountName").textContent = "Account";
   }
 
   function kv(label, value){
@@ -105,32 +170,42 @@
     return values.map(v => `<span class="tag-chip">${escapeHtml(v)}</span>`).join("");
   }
 
-  let account = null;
+  /* ---- Render ---- */
 
-  async function load(){
-    if(!accountId){ showError("No account specified."); return; }
+  function render(){
+    const isAppUser = account.role === "user";
+    const isSelf = String(account.id) === String(me.id);
 
-    try {
-      account = await Accounts.get(accountId);
-    } catch (err) {
-      showError(err.message);
-      return;
-    }
+    $("accountName").textContent = `${account.first_name} ${account.last_name}`;
+    $("accountContent").style.display = "block";
 
-    nameEl.textContent = `${account.first_name} ${account.last_name}`;
-    contentEl.style.display = "block";
-
-    document.getElementById("accountGrid").innerHTML = [
+    $("accountGrid").innerHTML = [
       kv("User ID", account.display_id),
       kv("Email", account.email),
       kv("User Type", account.user_type),
-      kv("Status", account.status),
+      `<div class="kv-item"><div class="kv-label">Status</div>
+        <div class="kv-value" id="statusValue">${escapeHtml(account.status)}</div></div>`,
       kv("Joined", formatDate(account.created_at)),
-      kv("Onboarding", account.onboarding_complete ? "Complete" : "Incomplete"),
+      // Onboarding is an app flow, so it's meaningless for staff.
+      isAppUser ? kv("Onboarding", account.onboarding_complete ? "Complete" : "Incomplete") : "",
     ].join("");
 
+    $("appUserSections").style.display = isAppUser ? "block" : "none";
+    if (isAppUser) renderAppUserSections();
+
+    renderStatusAction(isSelf || !CAN_MANAGE_ACCOUNTS);
+
+    $("roleCard").style.display = CAN_MANAGE_ACCOUNTS && !isSelf ? "block" : "none";
+    $("roleSelect").value = account.role;
+    $("saveRoleBtn").disabled = true;
+
+    $("deleteCard").style.display = CAN_MANAGE_ACCOUNTS && !isSelf ? "block" : "none";
+    $("selfNote").style.display = isSelf ? "block" : "none";
+  }
+
+  function renderAppUserSections(){
     // Health values render as chips because they are multi-select in the app.
-    document.getElementById("profileGrid").innerHTML = [
+    $("profileGrid").innerHTML = [
       kv("Age", account.age ? `${account.age} years` : null),
       kv("Gender", account.gender),
       kv("Height", account.height_cm ? `${account.height_cm} cm` : null),
@@ -143,46 +218,136 @@
         <div class="kv-value">${chips(account.dietary_preferences)}</div></div>`,
     ].join("");
 
-    document.getElementById("activityGrid").innerHTML = [
+    $("activityGrid").innerHTML = [
       tile(account.food_log_count, "Food log entries"),
       tile(account.recommendation_count, "Recommendations"),
       tile(account.open_request_count, "Open requests"),
       tile(account.last_active ? formatDate(account.last_active) : "Never", "Last logged"),
     ].join("");
-
-    renderActions();
   }
 
-  function renderActions(){
-    const container = document.getElementById("accountActions");
-    const suspending = account.status === "Active";
+  /* ---- Suspend / reactivate ---- */
 
+  function renderStatusAction(hide){
+    const container = $("accountActions");
+    if (hide) { container.innerHTML = ""; return; }
+
+    const suspending = account.status === "Active";
     container.innerHTML = `
       <button class="btn ${suspending ? "btn-danger-outline" : "btn-outline"}" id="statusBtn">
         ${suspending ? "Suspend Account" : "Reactivate Account"}
       </button>`;
 
-    document.getElementById("statusBtn").addEventListener("click", async () => {
+    $("statusBtn").addEventListener("click", async () => {
       const verb = suspending ? "suspend" : "reactivate";
       if(!confirm(`Are you sure you want to ${verb} this account?`)) return;
 
-      const btn = document.getElementById("statusBtn");
+      const btn = $("statusBtn");
       btn.disabled = true;
       btn.textContent = "Working…";
 
       try {
-        const updated = await Accounts.setStatus(account.id, suspending ? false : true);
-        account.status = updated.status;
-        document.getElementById("accountGrid").children[3]
-          .querySelector(".kv-value").textContent = updated.status;
+        account = await Accounts.setStatus(account.id, !suspending);
+        render();
         showToast(`Account ${verb}d.`);
-        renderActions();
       } catch (err) {
         alert(err.message);
-        btn.disabled = false;
-        renderActions();
+        render();
       }
     });
+  }
+
+  /* ---- Change user type ---- */
+
+  $("roleSelect").addEventListener("change", () => {
+    $("saveRoleBtn").disabled = $("roleSelect").value === account.role;
+  });
+
+  $("saveRoleBtn").addEventListener("click", async () => {
+    const next = $("roleSelect").value;
+    const fromLabel = ROLE_LABELS[account.role];
+    const toLabel = ROLE_LABELS[next];
+
+    let message = `Change ${account.first_name}'s user type from ${fromLabel} to ${toLabel}?`;
+    if (next !== "user" && account.role === "user") {
+      message += "\n\nThey will gain access to this admin website.";
+    } else if (next === "user") {
+      message += "\n\nThey will lose access to this admin website.";
+    }
+    if (!confirm(message)) { $("roleSelect").value = account.role; $("saveRoleBtn").disabled = true; return; }
+
+    const btn = $("saveRoleBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+
+    try {
+      account = await Accounts.setRole(account.id, next);
+      render();
+      showToast(`User type changed to ${toLabel}.`);
+    } catch (err) {
+      alert(err.message);
+      $("roleSelect").value = account.role;
+    } finally {
+      btn.textContent = "Change User Type";
+    }
+  });
+
+  /* ---- Delete ---- */
+
+  function closeDelete(){
+    closeModal("deleteModal");
+    $("delConfirm").value = "";
+    $("confirmDeleteBtn").disabled = true;
+  }
+
+  $("openDeleteBtn").addEventListener("click", () => {
+    $("delName").textContent = `${account.first_name} ${account.last_name}`;
+    $("delId").textContent = account.display_id;
+    $("delEmail").textContent = account.email;
+    openModal("deleteModal");
+    setTimeout(() => $("delConfirm").focus(), 50);
+  });
+
+  // Typing the email is a deliberate speed bump for an action that can't be undone.
+  $("delConfirm").addEventListener("input", () => {
+    $("confirmDeleteBtn").disabled =
+      $("delConfirm").value.trim().toLowerCase() !== account.email.toLowerCase();
+  });
+
+  $("cancelDeleteBtn").addEventListener("click", closeDelete);
+  $("deleteModal").addEventListener("click", (e) => { if (e.target.id === "deleteModal") closeDelete(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && $("deleteModal").classList.contains("open")) closeDelete();
+  });
+
+  $("confirmDeleteBtn").addEventListener("click", async () => {
+    const btn = $("confirmDeleteBtn");
+    btn.disabled = true;
+    btn.textContent = "Deleting…";
+
+    try {
+      await Accounts.remove(account.id);
+      closeModal("deleteModal");
+      showToast("Account deleted.");
+      setTimeout(() => { window.location.href = "accounts.html?type=All"; }, 1000);
+    } catch (err) {
+      alert(err.message);
+      btn.textContent = "Delete Permanently";
+      btn.disabled = false;
+    }
+  });
+
+  /* ---- Load ---- */
+
+  async function load(){
+    if(!accountId){ showError("No account specified."); return; }
+    try {
+      account = await Accounts.get(accountId);
+    } catch (err) {
+      showError(err.message);
+      return;
+    }
+    render();
   }
 
   load();

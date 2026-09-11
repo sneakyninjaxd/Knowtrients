@@ -556,7 +556,8 @@ tbody tr:hover{ background:var(--panel); }
 }
 
 /* Reveal button when hovering over the container */
-.avatar-chip:hover .logout-btn {
+.avatar-chip:hover .logout-btn,
+.avatar-chip:focus-within .logout-btn {
   display: block;
 }
 
@@ -663,3 +664,16 @@ tbody tr:hover{ background:var(--panel); }
   font-size:.8rem;
   margin:0 6px 6px 0;
 }
+
+
+/* ---- Welcome chip as a link to My Account ---- */
+a.welcome-chip{ transition:background .15s var(--ease); }
+a.welcome-chip:hover{ background:var(--mint-strong); }
+ 
+/* ---- My Account page ---- */
+.account-stack{ display:flex; flex-direction:column; gap:24px; max-width:620px; }
+.card-note{ font-size:.85rem; color:var(--ink-faint); margin:14px 0 0; }
+
+/* ---- View Account: user type and delete ---- */
+.role-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.danger-card{ border-color:rgba(226,99,92,.35); }
