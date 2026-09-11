@@ -63,6 +63,49 @@ function requireAuth(loginPath = "../login.html") {
   return true;
 }
 
+/**
+ * Each staff role has its own area of the site:
+ *   User Admins       -> UA/  (accounts, support requests)
+ *   Platform Managers -> PM/  (app performance, AI, feedback)
+ * Paths are relative to the site root.
+ */
+const ROLE_HOME = {
+  user_admin: "UA/dashboard.html",
+  platform_manager: "PM/dashboard.html",
+};
+
+function homeFor(role) {
+  return ROLE_HOME[role] || null;
+}
+
+/**
+ * Like requireAuth, but also sends staff who don't belong on this page to
+ * their own dashboard. Call at the top of every admin page, e.g.
+ *   requireRole("user_admin");
+ *   requireRole("user_admin", "platform_manager");   // shared pages
+ *
+ * This only controls navigation. The backend must refuse the data too.
+ */
+function requireRole(...allowedRoles) {
+  const root = "../";
+  const user = Session.user;
+
+  if (!Session.isLoggedIn || !user || !homeFor(user.role)) {
+    Session.clear();
+    window.location.replace(root + "login.html");
+    document.documentElement.style.visibility = "hidden";
+    return false;
+  }
+
+  if (!allowedRoles.includes(user.role)) {
+    window.location.replace(root + homeFor(user.role));
+    // Hide the page so its content doesn't flash before the redirect.
+    document.documentElement.style.visibility = "hidden";
+    return false;
+  }
+  return true;
+}
+
 /* ---- Request helper ------------------------------------- */
 
 class ApiError extends Error {
@@ -154,6 +197,26 @@ const Auth = {
   async me() {
     return apiFetch("/me");
   },
+
+  /** Updates the signed-in admin's own name and refreshes the stored session. */
+  async updateMe({ first_name, last_name }) {
+    const updated = await apiFetch("/me", {
+      method: "PATCH",
+      body: JSON.stringify({ first_name, last_name }),
+    });
+    Session.save(Session.token, { ...Session.user, ...updated });
+    return updated;
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    return apiFetch("/me/password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+  },
 };
 
 /* ---- Accounts ------------------------------------------- */
@@ -193,7 +256,15 @@ const Accounts = {
   async remove(id) {
     return apiFetch(`/admin/accounts/${id}`, { method: "DELETE" });
   },
+
+  async create(data) {        /*create staff account*/
+    return apiFetch("/admin/accounts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };
+
 
 /* ---- Support requests ----------------------------------- */
 

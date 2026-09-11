@@ -65,19 +65,38 @@ function markFieldError(fieldEl, hasError){
   fieldEl.classList.toggle("field-error", hasError);
 }
 
+// ---- Welcome chip (admin shell): greet the signed-in admin by name ----
+function initWelcomeChip(){
+  const chip = document.querySelector(".welcome-chip");
+  if(!chip || typeof Session === "undefined") return;
+  const user = Session.user;
+  if(!user || !user.first_name) return;
+  chip.innerHTML = "";
+  const avatar = document.createElement("span");
+  avatar.className = "avatar";
+  avatar.textContent = "\u{1F464}";
+  chip.append(avatar, ` Welcome, ${user.first_name}`);
+}
+
 document.addEventListener("DOMContentLoaded", ()=>{
   initDrawer();
   initSidebar();
+  initWelcomeChip();
 });
 
-// Logout button handler
-const logoutBtn = document.getElementById("logoutBtn");
-if(logoutBtn){
-  logoutBtn.addEventListener("click", (e)=>{
-    e.preventDefault();
-    if(confirm("Are you sure you want to log out?")){
+// ---- Logout ----
+// Binds every logout control on the page: the hover button in the top bar
+// (.logout-btn) and any other button marked data-action="logout", such as the
+// one on My Account. Using getElementById here would only find the first one.
+function initLogout(){
+  document.querySelectorAll('.logout-btn, [data-action="logout"]').forEach((btn)=>{
+    btn.addEventListener("click", (e)=>{
+      e.preventDefault();
+      if(!confirm("Are you sure you want to log out?")) return;
       // Clear the stored token, or the next visit walks straight back in.
       if(typeof Auth !== "undefined") Auth.logout();
       window.location.href = "../login.html";
-    }
-  })};
+    });
+  });
+}
+initLogout();

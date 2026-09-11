@@ -15,10 +15,16 @@
    localStorage, so they survive refreshes and page changes.
    Click "reset" on the MOCK DATA badge to restore the seed data.
 
-   Login: any email + any password signs you in as a Platform
-   Manager. Seeded emails log in as that account instead, e.g.
-     michealA44@gmail.com  -> User Admin (tests role limits)
+   Login: any email + any password signs you in as a User Admin
+   (Micheal Afton). Seeded emails log in as that account instead, e.g.
+     priyanair@gmail.com   -> Platform Manager (no account management)
      danieltan@gmail.com   -> ordinary app user (tests rejection)
+
+   Permissions: accounts and support requests (everything under
+   /admin) belong to User Admins. Platform Managers only reach /me
+   (their own details); their own pages live in PM/.
+   Once a password is set (Create Account or My Account), that
+   account must log in with it.
    ============================================================ */
 
 (function () {
@@ -239,13 +245,20 @@
   }
 
   // The logged-in admin. With requireAuth() commented out there is no session,
-  // so fall back to a Platform Manager rather than failing every request.
+  // so fall back to a User Admin rather than failing every request.
   function currentUser(db) {
     const sessionUser = Session.user;
     if (sessionUser) {
       return db.accounts.find((a) => a.id === sessionUser.id) || sessionUser;
     }
-    return db.accounts.find((a) => a.role === "platform_manager");
+    return db.accounts.find((a) => a.role === "user_admin" && a.is_active);
+  }
+
+  // Accounts and support requests are User Admin responsibilities only.
+  function requireUserAdmin(me) {
+    if (!me || me.role !== "user_admin") {
+      fail(403, "Only User Admins can access accounts and support requests.");
+    }
   }
 
   const newestFirst = (a, b) => new Date(b.created_at) - new Date(a.created_at);
@@ -264,13 +277,22 @@
     const me = currentUser(db);
     let m;
 
+    // Accounts, support requests and the UA dashboard are User Admin work.
+    // Platform Managers are refused everything under /admin.
+    if (route.startsWith("/admin/")) requireUserAdmin(me);
+
     // POST /login
     if (method === "POST" && route === "/login") {
       if (!body.email || !body.password) fail(422, "Email and password are required.");
       const found = db.accounts.find(
         (a) => a.email.toLowerCase() === body.email.toLowerCase()
       );
-      const account = found || db.accounts.find((a) => a.role === "platform_manager");
+      // Accounts only get a stored password once one is set through the
+      // create form or My Account; until then any password is accepted.
+      if (found && found.password && found.password !== body.password) {
+        fail(401, "Incorrect email or password.");
+      }
+      const account = found || db.accounts.find((a) => a.role === "user_admin" && a.is_active);
       if (!account.is_active) fail(403, "This account has been suspended.");
       return {
         access_token: "mock-token-" + account.id,
@@ -282,6 +304,39 @@
     // GET /me
     if (method === "GET" && route === "/me") {
       return accountSummary(me);
+    }
+
+    // PATCH /me  (change own name; ID, email and role are not editable here)
+    if (method === "PATCH" && route === "/me") {
+      const account = db.accounts.find((a) => a.id === me.id);
+      if (!account) fail(404, "Account not found.");
+      const first = (body.first_name || "").trim();
+      const last = (body.last_name || "").trim();
+      if (!first || !last) fail(422, "First and last name are required.");
+      account.first_name = first;
+      account.last_name = last;
+      save(db);
+      return accountSummary(account);
+    }
+
+    // POST /me/password
+    if (method === "POST" && route === "/me/password") {
+      const account = db.accounts.find((a) => a.id === me.id);
+      if (!account) fail(404, "Account not found.");
+      if (!body.current_password) fail(422, "Enter your current password.");
+      if (account.password && account.password !== body.current_password) {
+        fail(400, "Current password is incorrect.");
+      }
+      if (!body.new_password || body.new_password.length < 8) {
+        fail(422, "New password must be at least 8 characters.");
+      }
+      if (body.new_password === body.current_password) {
+        fail(422, "New password must be different from your current password.");
+      }
+      // Plain text is acceptable only because this is a browser-local mock.
+      account.password = body.new_password;
+      save(db);
+      return null; // real API would return 204
     }
 
     // GET /admin/dashboard
@@ -300,6 +355,40 @@
         logs_today: db.stats.logs_today,
         recommendations_today: db.stats.recommendations_today,
       };
+    }
+
+    // POST /admin/accounts  (create a staff account)
+    if (method === "POST" && route === "/admin/accounts") {
+      const first = (body.first_name || "").trim();
+      const last = (body.last_name || "").trim();
+      const email = (body.email || "").trim();
+
+      if (!first || !last) fail(422, "First and last name are required.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(422, "Enter a valid email address.");
+      if (!body.password || body.password.length < 8) {
+        fail(422, "Password must be at least 8 characters.");
+      }
+      if (body.role !== "user_admin" && body.role !== "platform_manager") {
+        fail(422, "Role must be User Admin or Platform Manager.");
+      }
+      if (db.accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
+        fail(409, "An account with this email already exists.");
+      }
+
+      const nextId = Math.max(0, ...db.accounts.map((a) => a.id)) + 1;
+      const nextDisplay = Math.max(
+        0, ...db.accounts.map((a) => Number(a.display_id.slice(1)) || 0)
+      ) + 1;
+
+      const account = staff(
+        nextId, "U" + String(nextDisplay).padStart(3, "0"),
+        first, last, email, body.role, true, 0
+      );
+      account.created_at = new Date().toISOString();
+      account.password = body.password; // mock only, so login can check it
+      db.accounts.push(account);
+      save(db);
+      return accountDetail(account, db);
     }
 
     // GET /admin/accounts?user_type=&q=&status=
@@ -325,16 +414,12 @@
 
       if (method === "PATCH" && sub === "/status") {
         if (account.id === me.id) fail(400, "You cannot change the status of your own account.");
-        if (me.role === "user_admin" && account.role !== "user") {
-          fail(403, "User Admins cannot change the status of staff accounts.");
-        }
         account.is_active = Boolean(body.is_active);
         save(db);
         return accountDetail(account, db);
       }
 
       if (method === "PATCH" && sub === "/role") {
-        if (me.role !== "platform_manager") fail(403, "Only Platform Managers can change roles.");
         if (!ROLE_LABELS[body.role]) fail(422, "Invalid role.");
         if (account.id === me.id) fail(400, "You cannot change your own role.");
         account.role = body.role;
@@ -343,7 +428,6 @@
       }
 
       if (method === "DELETE" && !sub) {
-        if (me.role !== "platform_manager") fail(403, "Only Platform Managers can delete accounts.");
         if (account.id === me.id) fail(400, "You cannot delete your own account.");
         db.accounts = db.accounts.filter((a) => a.id !== id);
         db.requests = db.requests.filter((r) => r.user_id !== id);

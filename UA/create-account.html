@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Account — Knowtrients Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-topbar">
+  <div class="app-topbar-left">
+    <button class="hamburger" id="sidebarToggle" aria-label="Toggle menu">☰</button>
+    <a class="brand" href="dashboard.html" style="font-size:1.05rem;"><span class="brand-mark" style="width:24px;height:24px;font-size:13px;">✦</span> Knowtrients</a>
+  </div>
+  <div class="avatar-chip">
+    <a class="welcome-chip" href="my-account.html" title="My Account">
+      <span class="avatar">👤 </span> Welcome, Admin
+    </a>
+    <button class="logout-btn" type="button">Logout</button>
+  </div>
+</header>
+
+<aside class="app-sidebar" id="appSidebar">
+  <div class="sb-group">
+    <h3><a href="accounts.html?type=All">Accounts</a></h3>
+    <ul>
+      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
+      <li><a href="accounts.html?type=User">Users</a></li>
+      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+    </ul>
+  </div>
+  <div class="sb-group">
+    <h3><a href="requests.html?filter=All">Requests</a></h3>
+    <ul>
+      <li><a href="requests.html?filter=Unresolved">Pending Requests</a></li>
+      <li><a href="requests.html?filter=Resolved">Resolved Requests</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="app-main" id="appMain">
+  <div class="page-head">
+    <div>
+      <a class="btn btn-ghost btn-sm" href="accounts.html?type=All">‹ Back to Accounts</a>
+      <h1 style="margin-top:12px;">Create Account</h1>
+    </div>
+  </div>
+
+  <form class="card" id="createForm" novalidate style="max-width:620px;">
+    <h2>Staff account details</h2>
+    <p style="font-size:.88rem;margin-bottom:20px;">
+      App users sign up from the mobile app. Use this form for User Admin and
+      Platform Manager accounts only.
+    </p>
+
+    <div id="formError" class="form-error" style="display:none;"></div>
+
+    <div class="field-row">
+      <div class="field" id="firstNameField">
+        <label for="firstName">First name</label>
+        <input class="input" id="firstName" autocomplete="off" required>
+        <div class="field-hint">Enter a first name.</div>
+      </div>
+      <div class="field" id="lastNameField">
+        <label for="lastName">Last name</label>
+        <input class="input" id="lastName" autocomplete="off" required>
+        <div class="field-hint">Enter a last name.</div>
+      </div>
+    </div>
+
+    <div class="field" id="emailField">
+      <label for="email">Email</label>
+      <input class="input" type="email" id="email" placeholder="example123@gmail.com" autocomplete="off" required>
+      <div class="field-hint">Enter a valid email address.</div>
+    </div>
+
+    <div class="field" id="roleField">
+      <label for="role">User type</label>
+      <select class="input" id="role" required>
+        <option value="" selected disabled>Select a user type</option>
+        <option value="user_admin">User Admin</option>
+        <option value="platform_manager">Platform Manager</option>
+      </select>
+      <div class="field-hint">Choose a user type.</div>
+    </div>
+
+    <div class="field-row">
+      <div class="field" id="passwordField">
+        <label for="password">Temporary password</label>
+        <input class="input" type="password" id="password" autocomplete="new-password" required>
+        <div class="field-hint">At least 8 characters.</div>
+      </div>
+      <div class="field" id="confirmField">
+        <label for="confirm">Confirm password</label>
+        <input class="input" type="password" id="confirm" autocomplete="new-password" required>
+        <div class="field-hint">Passwords do not match.</div>
+      </div>
+    </div>
+
+    <div class="detail-actions">
+      <button type="submit" class="btn btn-primary" id="submitBtn">Create Account</button>
+      <a class="btn btn-ghost" href="accounts.html?type=All">Cancel</a>
+    </div>
+  </form>
+</main>
+
+<script src="../js/api.js"></script>
+<!-- Mock backend: delete the next line to use the real API -->
+<!-- <script src="../js/mock-api.js"></script> -->
+<script src="../js/app.js"></script>
+<script>
+  requireRole("user_admin");
+
+  const form = document.getElementById("createForm");
+
+  const submitBtn = document.getElementById("submitBtn");
+  const errorBox = document.getElementById("formError");
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const $ = (id) => document.getElementById(id);
+
+  // Clear a field's error as soon as the admin starts fixing it.
+  form.querySelectorAll(".input").forEach((input) => {
+    const clear = () => markFieldError(input.closest(".field"), false);
+    input.addEventListener("input", clear);
+    input.addEventListener("change", clear);
+  });
+
+  function validate() {
+    const checks = [
+      ["firstNameField", !$("firstName").value.trim()],
+      ["lastNameField", !$("lastName").value.trim()],
+      ["emailField", !EMAIL_PATTERN.test($("email").value.trim())],
+      ["roleField", !$("role").value],
+      ["passwordField", $("password").value.length < 8],
+      ["confirmField", !$("confirm").value || $("confirm").value !== $("password").value],
+    ];
+    checks.forEach(([fieldId, hasError]) => markFieldError($(fieldId), hasError));
+
+    const firstBad = checks.find(([, hasError]) => hasError);
+    if (firstBad) $(firstBad[0]).querySelector(".input").focus();
+    return !firstBad;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorBox.style.display = "none";
+    if (!validate()) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Creating…";
+
+    try {
+      const account = await Accounts.create({
+        first_name: $("firstName").value.trim(),
+        last_name: $("lastName").value.trim(),
+        email: $("email").value.trim(),
+        role: $("role").value,
+        password: $("password").value,
+      });
+
+      showToast(`${account.user_type} account created for ${account.first_name}.`);
+      // Short pause so the toast is readable before moving to the new account.
+      setTimeout(() => {
+        window.location.href = "view-account.html?id=" + account.id;
+      }, 1000);
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "block";
+      errorBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Create Account";
+    }
+  });
+</script>
+</body>
+</html>
