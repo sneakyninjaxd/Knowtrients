@@ -9,36 +9,41 @@
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
+
 <header class="app-topbar">
-  <div class="app-topbar-left">
-    <button class="hamburger" id="sidebarToggle" aria-label="Toggle menu">☰</button>
-    <a class="brand" href="dashboard.html" style="font-size:1.05rem;"><span class="brand-mark" style="width:24px;height:24px;font-size:13px;">✦</span> Knowtrients</a>
-  </div>
+  <button class="brand" id="brandTrigger" aria-label="Open menu">
+    <span class="brand-mark">✦</span> Knowtrients
+  </button>
   <div class="avatar-chip">
     <a class="welcome-chip" href="my-account.html" title="My Account">
       <span class="avatar">👤 </span> Welcome, Admin
     </a>
     <button class="logout-btn" type="button">Logout</button>
   </div>
+  
 </header>
 
-<aside class="app-sidebar" id="appSidebar">
-  <div class="sb-group">
-    <h3><a href="accounts.html?type=All">Accounts</a></h3>
+<div class="drawer-scrim" id="drawerScrim"></div>
+<nav class="drawer" id="drawer" aria-label="Site navigation">
+  <div class="drawer-section">
+    <a href="dashboard.html?type=All"><h2>Home</h2></a>
+  </div>
+  <div class="drawer-section">
+    <a href="accounts.html?type=All"><h3>Accounts</h3></a>
     <ul>
       <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
       <li><a href="accounts.html?type=User">Users</a></li>
       <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
     </ul>
   </div>
-  <div class="sb-group">
-    <h3><a href="requests.html?filter=All">Requests</a></h3>
+  <div class="drawer-section">
+    <a href="requests.html?filter=All"><h3>Requests</h3></a>
     <ul>
       <li><a href="requests.html?filter=Unresolved">Pending Requests</a></li>
       <li><a href="requests.html?filter=Resolved">Resolved Requests</a></li>
     </ul>
   </div>
-</aside>
+</nav>
 
 
 <main class="app-main" id="appMain">
@@ -126,7 +131,7 @@
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
-<!-- <script src="../js/mock-api.js"></script> -->
+<script src="../js/mock-api.js"></script>
 <script src="../js/app.js"></script>
 
 <script>
