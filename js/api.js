@@ -70,6 +70,7 @@ function requireAuth(loginPath = "../login.html") {
  * Paths are relative to the site root.
  */
 const ROLE_HOME = {
+  user: "user/download.html",
   user_admin: "UA/dashboard.html",
   platform_manager: "PM/dashboard.html",
 };

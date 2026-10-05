@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Download — Knowtrients</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Marketing top bar rather than the admin shell: app users have one page,
+     so a sidebar would be empty. The hover logout works the same way. -->
+<header class="topbar">
+  <a class="brand" href="download.html"><span class="brand-mark">✦</span> Knowtrients</a>
+  <div class="topbar-right">
+    <a class="topbar-link" href="#getting-started">Getting started</a>
+    <div class="avatar-chip">
+      <!-- initWelcomeChip() in app.js replaces this with the user's name -->
+      <span class="welcome-chip"><span class="avatar">👤</span> Welcome</span>
+      <button class="logout-btn" type="button">Logout</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div>
+      <h1>Your download is ready</h1>
+      <p class="lede">
+        Thanks for registering. Install Knowtrients on your phone and sign in
+        with the same email and password you used here.
+      </p>
+      <div class="hero-cta">
+        <!-- TODO: point href at the real APK once it's hosted, and drop the
+             title. A direct link is fine here because the page is only
+             reachable with a login. -->
+        <a class="btn btn-primary" id="downloadBtn" href="#" title="Coming soon"
+           download>Download Knowtrients.apk</a>
+      </div>
+      <!-- TODO: replace with the real version and file size at release -->
+      <p class="card-note">Android · version coming soon</p>
+    </div>
+  </section>
+
+  <section class="section" id="getting-started">
+    <div class="eyebrow">Getting started</div>
+    <h2>Three steps to your first recommendation</h2>
+    <div class="section-grid">
+      <div class="feature-card">
+        <h4>1. Install the app</h4>
+        <p>Download the file above and open it on your Android phone. You may
+          need to allow installs from your browser the first time.</p>
+      </div>
+      <div class="feature-card">
+        <h4>2. Sign in</h4>
+        <p>Use the email and password from your Knowtrients account. There's
+          no separate account for the app.</p>
+      </div>
+      <div class="feature-card">
+        <h4>3. Set up your profile</h4>
+        <p>Answer a few questions about your goals and dietary preferences, and
+          Knowtrients starts tailoring recommendations to you.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TODO: once support requests are open to app users, link a "Need help?"
+       section here so they can raise one instead of emailing. -->
+</main>
+
+<div class="footer-note">© 2026 Knowtrients. This site is a work in progress.</div>
+
+<script src="../js/api.js"></script>
+<!-- Mock backend: delete the next line to use the real API -->
+<script src="../js/mock-api.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  // App users only. Staff who land here are sent to their own dashboard.
+  requireRole("user");
+</script>
+</body>
+</html>
