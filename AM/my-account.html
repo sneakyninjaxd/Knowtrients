@@ -31,9 +31,9 @@
   <div class="drawer-section">
     <a href="accounts.html?type=All"><h3>Accounts</h3></a>
     <ul>
-      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
+      <li><a href="accounts.html?type=Account%20Manager">Account Managers</a></li>
       <li><a href="accounts.html?type=User">Users</a></li>
-      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+      <li><a href="accounts.html?type=IT%20Manager">IT Managers</a></li>
     </ul>
   </div>
   <div class="drawer-section">
@@ -132,17 +132,17 @@
 <script src="../js/mock-api.js"></script>
 <script src="../js/app.js"></script>
 <script>
-  requireRole("user_admin", "platform_manager");
+  requireRole("account_manager", "IT_manager");
 
   const $ = (id) => document.getElementById(id);
   let me = null;
 
-  // My Account is shared, but the navigation around it belongs to each role.
-  if (Session.user?.role === "platform_manager") {
-    document.querySelector(".app-topbar .brand").href = "../PM/dashboard.html";
-    $("appSidebar").innerHTML = `
-      <div class="sb-group">
-        <h3><a href="../PM/dashboard.html">Dashboard</a></h3>
+  // My Account is shared with IT Managers, but the Accounts and Requests menu
+  // is Account Manager work, so IT Managers get their own short menu instead.
+  if (Session.user?.role === "IT_manager") {
+    document.getElementById("drawer").innerHTML = `
+      <div class="drawer-section">
+        <a href="../IM/dashboard.html"><h2>Home</h2></a>
       </div>`;
   }
 

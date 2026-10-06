@@ -7,7 +7,7 @@
    against the same URLs and response shapes the real API uses.
 
    ENABLE:  add this line directly AFTER api.js on a page
-              <script src="../js/mock-api.js"></script>   (UA/ pages)
+              <script src="../js/mock-api.js"></script>   (AM/ and IM/ pages)
               <script src="js/mock-api.js"></script>      (login.html)
    DISABLE: delete that line. Nothing else needs to change.
 
@@ -15,27 +15,25 @@
    localStorage, so they survive refreshes and page changes.
    Click "reset" on the MOCK DATA badge to restore the seed data.
 
-   Login: any email + any password signs you in as a User Admin
+   Login: any email + any password signs you in as a Account Manager
    (Micheal Afton). Seeded emails log in as that account instead, e.g.
-     priyanair@gmail.com   -> Platform Manager (no account management)
+     priyanair@gmail.com   -> IT Manager (no account management)
      danieltan@gmail.com   -> ordinary app user (tests rejection)
 
    Permissions: accounts and support requests (everything under
-   /admin) belong to User Admins. Platform Managers only reach /me
-   (their own details); their own pages live in PM/.
+   /admin) belong to Account Managers. IT Managers only reach /me
+   (their own details); their own pages live in IM/.
    Once a password is set (Create Account or My Account), that
    account must log in with it.
    ============================================================ */
 
 (function () {
-  const STORE_KEY = "knowtrients_mock_db";
+  // Bumped when the seed shape changes (here: the role rename), so an old
+  // copy in the browser is replaced instead of breaking every page.
+  const STORE_KEY = "knowtrients_mock_db_v2";
   const LATENCY_MS = 300; // lets you see loading states
 
-  const ROLE_LABELS = {
-    user: "User",
-    user_admin: "User Admin",
-    platform_manager: "Platform Manager",
-  };
+  // Labels come from api.js so the mock and the pages always agree.
   const LABEL_TO_ROLE = Object.fromEntries(
     Object.entries(ROLE_LABELS).map(([slug, label]) => [label, slug])
   );
@@ -67,12 +65,12 @@
 
   function seed() {
     const accounts = [
-      staff(1, "U001", "Micheal", "Afton", "michealA44@gmail.com", "user_admin", true, 140),
-      staff(2, "U002", "Thomas", "Addison", "eddison67@gmail.com", "user_admin", false, 130),
-      staff(3, "U003", "Samuel", "Liu", "samliu8890@gmail.com", "user_admin", true, 95),
-      staff(4, "U004", "Lebaski", "Addams", "Addamsl1@gmail.com", "user_admin", true, 60),
-      staff(5, "U010", "Priya", "Nair", "priyanair@gmail.com", "platform_manager", true, 180),
-      staff(6, "U011", "Jonas", "Wren", "jonaswren@gmail.com", "platform_manager", true, 175),
+      staff(1, "U001", "Micheal", "Afton", "michealA44@gmail.com", "account_manager", true, 140),
+      staff(2, "U002", "Thomas", "Addison", "eddison67@gmail.com", "account_manager", false, 130),
+      staff(3, "U003", "Samuel", "Liu", "samliu8890@gmail.com", "account_manager", true, 95),
+      staff(4, "U004", "Lebaski", "Addams", "Addamsl1@gmail.com", "account_manager", true, 60),
+      staff(5, "U010", "Priya", "Nair", "priyanair@gmail.com", "IT_manager", true, 180),
+      staff(6, "U011", "Jonas", "Wren", "jonaswren@gmail.com", "IT_manager", true, 175),
 
       appUser(7, "U020", "Clare", "Koh", "koh234@gmail.com", false, 45, {
         onboarding_complete: true, age: 29, gender: "Female", height_cm: 162, weight_kg: 58,
@@ -245,19 +243,19 @@
   }
 
   // The logged-in admin. With requireAuth() commented out there is no session,
-  // so fall back to a User Admin rather than failing every request.
+  // so fall back to a Account Manager rather than failing every request.
   function currentUser(db) {
     const sessionUser = Session.user;
     if (sessionUser) {
       return db.accounts.find((a) => a.id === sessionUser.id) || sessionUser;
     }
-    return db.accounts.find((a) => a.role === "user_admin" && a.is_active);
+    return db.accounts.find((a) => a.role === "account_manager" && a.is_active);
   }
 
-  // Accounts and support requests are User Admin responsibilities only.
+  // Accounts and support requests are Account Manager responsibilities only.
   function requireUserAdmin(me) {
-    if (!me || me.role !== "user_admin") {
-      fail(403, "Only User Admins can access accounts and support requests.");
+    if (!me || me.role !== "account_manager") {
+      fail(403, "Only Account Managers can access accounts and support requests.");
     }
   }
 
@@ -277,8 +275,8 @@
     const me = currentUser(db);
     let m;
 
-    // Accounts, support requests and the UA dashboard are User Admin work.
-    // Platform Managers are refused everything under /admin.
+    // Accounts, support requests and the UA dashboard are Account Manager work.
+    // IT Managers are refused everything under /admin.
     if (route.startsWith("/admin/")) requireUserAdmin(me);
 
     // POST /login
@@ -292,12 +290,56 @@
       if (found && found.password && found.password !== body.password) {
         fail(401, "Incorrect email or password.");
       }
-      const account = found || db.accounts.find((a) => a.role === "user_admin" && a.is_active);
+      const account = found || db.accounts.find((a) => a.role === "account_manager" && a.is_active);
       if (!account.is_active) fail(403, "This account has been suspended.");
       return {
         access_token: "mock-token-" + account.id,
         token_type: "bearer",
         user: { ...accountSummary(account) },
+      };
+    }
+
+    // POST /register  (public app-user sign-up from register.html)
+    if (method === "POST" && route === "/register") {
+      const first = (body.first_name || "").trim();
+      const last = (body.last_name || "").trim();
+      const email = (body.email || "").trim();
+
+      if (!first || !last) fail(422, "First and last name are required.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(422, "Enter a valid email address.");
+      if (!body.password || body.password.length < 8) {
+        fail(422, "Password must be at least 8 characters.");
+      }
+      if (db.accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
+        fail(409, "An account with this email already exists.");
+      }
+
+      const nextId = Math.max(0, ...db.accounts.map((a) => a.id)) + 1;
+      const nextDisplay = Math.max(
+        0, ...db.accounts.map((a) => Number(a.display_id.slice(1)) || 0)
+      ) + 1;
+
+      // Matches the users table: a new sign-up is an ordinary active app user
+      // with an empty profile until they finish onboarding in the app.
+      const account = appUser(
+        nextId, "U" + String(nextDisplay).padStart(3, "0"),
+        first, last, email, true, 0,
+        {
+          onboarding_complete: false, age: null, gender: null, height_cm: null,
+          weight_kg: null, activity_level: null, goals: [], dietary_preferences: [],
+          food_log_count: 0, recommendation_count: 0, last_active: null,
+        }
+      );
+      account.created_at = new Date().toISOString();
+      account.password = body.password; // mock only; the real table stores a hash
+      db.accounts.push(account);
+      save(db);
+
+      // Same shape as /login, so the page can sign them straight in.
+      return {
+        access_token: "mock-token-" + account.id,
+        token_type: "bearer",
+        user: accountSummary(account),
       };
     }
 
@@ -350,8 +392,8 @@
         new_users_7d: users.filter((a) => new Date(a.created_at) >= weekAgo).length,
         unresolved_requests: db.requests.filter((r) => r.status === "unresolved").length,
         resolved_requests: db.requests.filter((r) => r.status === "resolved").length,
-        user_admins: db.accounts.filter((a) => a.role === "user_admin").length,
-        platform_managers: db.accounts.filter((a) => a.role === "platform_manager").length,
+        account_managers: db.accounts.filter((a) => a.role === "account_manager").length,
+        IT_managers: db.accounts.filter((a) => a.role === "IT_manager").length,
         logs_today: db.stats.logs_today,
         recommendations_today: db.stats.recommendations_today,
       };
@@ -368,8 +410,8 @@
       if (!body.password || body.password.length < 8) {
         fail(422, "Password must be at least 8 characters.");
       }
-      if (body.role !== "user_admin" && body.role !== "platform_manager") {
-        fail(422, "Role must be User Admin or Platform Manager.");
+      if (body.role !== "account_manager" && body.role !== "IT_manager") {
+        fail(422, "Role must be Account Manager or IT Manager.");
       }
       if (db.accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
         fail(409, "An account with this email already exists.");

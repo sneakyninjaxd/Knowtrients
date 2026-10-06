@@ -31,9 +31,9 @@
   <div class="drawer-section">
     <a href="accounts.html?type=All"><h3>Accounts</h3></a>
     <ul>
-      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
+      <li><a href="accounts.html?type=Account%20Manager">Account Managers</a></li>
       <li><a href="accounts.html?type=User">Users</a></li>
-      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+      <li><a href="accounts.html?type=IT%20Manager">IT Managers</a></li>
     </ul>
   </div>
   <div class="drawer-section">
@@ -82,8 +82,8 @@
       <div class="role-row">
         <select class="input select-compact" id="roleSelect">
           <option value="user">User</option>
-          <option value="user_admin">User Admin</option>
-          <option value="platform_manager">Platform Manager</option>
+          <option value="account_manager">Account Manager</option>
+          <option value="IT_manager">IT Manager</option>
         </select>
         <button class="btn btn-primary" id="saveRoleBtn" disabled>Change User Type</button>
       </div>
@@ -135,14 +135,12 @@
 <script src="../js/app.js"></script>
 
 <script>
-  requireRole("user_admin");
+  requireRole("account_manager");
 
   /* Account management (suspend, change user type, delete) belongs to User
      Admins only. This just decides which controls appear; the backend is
      what actually enforces it. */
-  const CAN_MANAGE_ACCOUNTS = Session.user?.role === "user_admin";
-
-  const ROLE_LABELS = { user: "User", user_admin: "User Admin", platform_manager: "Platform Manager" };
+  const CAN_MANAGE_ACCOUNTS = Session.user?.role === "account_manager";
 
   const accountId = new URLSearchParams(window.location.search).get("id");
   const $ = (id) => document.getElementById(id);
@@ -270,8 +268,8 @@
 
   $("saveRoleBtn").addEventListener("click", async () => {
     const next = $("roleSelect").value;
-    const fromLabel = ROLE_LABELS[account.role];
-    const toLabel = ROLE_LABELS[next];
+    const fromLabel = roleLabel(account.role);
+    const toLabel = roleLabel(next);
 
     let message = `Change ${account.first_name}'s user type from ${fromLabel} to ${toLabel}?`;
     if (next !== "user" && account.role === "user") {

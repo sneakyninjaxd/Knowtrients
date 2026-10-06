@@ -31,9 +31,9 @@
   <div class="drawer-section">
     <a href="accounts.html?type=All"><h3>Accounts</h3></a>
     <ul>
-      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
+      <li><a href="accounts.html?type=Account%20Manager">Account Managers</a></li>
       <li><a href="accounts.html?type=User">Users</a></li>
-      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+      <li><a href="accounts.html?type=IT%20Manager">IT Managers</a></li>
     </ul>
   </div>
   <div class="drawer-section">
@@ -57,9 +57,9 @@
       <label for="typeFilter">User Type:</label>
       <select class="input select-compact" id="typeFilter">
         <option value="All" default>All</option>
-        <option value="User Admin">User Admin</option>
+        <option value="Account Manager">Account Manager</option>
         <option value="User">User</option>
-        <option value="Platform Manager">Platform Manager</option>
+        <option value="IT Manager">IT Manager</option>
       </select>
     </div>
     <div class="search-box">
@@ -87,7 +87,7 @@
 <script src="../js/app.js"></script>
 
 <script>
-  requireRole("user_admin");
+  requireRole("acconunt_manager");
 
   const params = new URLSearchParams(window.location.search);
   const initialType = params.get("type") || "All";

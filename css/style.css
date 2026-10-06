@@ -679,3 +679,12 @@ a.welcome-chip:hover{ background:var(--mint-strong); }
 /* ---- View Account: user type and delete ---- */
 .role-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .danger-card{ border-color:rgba(226,99,92,.35); }
+/* ---- Auth pages: footer links under the form ---- */
+.auth-alt{
+  margin-top:22px; padding-top:18px;
+  border-top:1px solid var(--panel-line);
+  text-align:center; font-size:.85rem; color:var(--ink-dim);
+}
+.auth-alt p{ margin:0 0 6px; }
+.auth-alt p:last-child{ margin-bottom:0; }
+.auth-alt a{ color:var(--mint); font-weight:600; }

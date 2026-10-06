@@ -26,6 +26,22 @@ const USER_KEY = "knowtrients_admin_user";
 
 /* ---- Session -------------------------------------------- */
 
+/**
+ * The roles were renamed: user_admin -> account_manager and
+ * platform_manager -> IT_manager. Anyone already signed in has the old name
+ * saved in their browser, and the real API may still send it, so translate
+ * it rather than treating the account as unknown (which looked like the
+ * login page flickering).
+ */
+const LEGACY_ROLES = {
+  user_admin: "account_manager",
+  platform_manager: "IT_manager",
+};
+
+function normalizeRole(role) {
+  return LEGACY_ROLES[role] || role;
+}
+
 const Session = {
   get token() {
     return localStorage.getItem(TOKEN_KEY);
@@ -33,7 +49,9 @@ const Session = {
   get user() {
     const raw = localStorage.getItem(USER_KEY);
     try {
-      return raw ? JSON.parse(raw) : null;
+      const user = raw ? JSON.parse(raw) : null;
+      if (user && user.role) user.role = normalizeRole(user.role);
+      return user;
     } catch {
       return null;
     }
@@ -64,15 +82,42 @@ function requireAuth(loginPath = "../login.html") {
 }
 
 /**
- * Each staff role has its own area of the site:
- *   User Admins       -> UA/  (accounts, support requests)
- *   Platform Managers -> PM/  (app performance, AI, feedback)
- * Paths are relative to the site root.
+ * Role slugs and what people call them. The slugs below ("account_manager",
+ * "IT_manager") are what the database and the API use, so they stay as
+ * they are; only the labels changed when the roles were renamed. Change a
+ * label here and it changes everywhere on the site.
+ *
+ *   account_manager       -> Account Manager  (accounts, support requests)
+ *   IT_manager -> IT Manager       (app performance, AI, feedback)
+ */
+const ROLE_LABELS = {
+  user: "User",
+  account_manager: "Account Manager",
+  IT_manager: "IT Manager",
+};
+
+/** "account_manager" -> "Account Manager" */
+function roleLabel(role) {
+  return ROLE_LABELS[role] || "User";
+}
+
+/** "Account Manager" -> "account_manager" (for filters sent to the API) */
+function roleFromLabel(label) {
+  return Object.keys(ROLE_LABELS).find((slug) => ROLE_LABELS[slug] === label) || null;
+}
+
+/**
+ * Each role has its own area of the site:
+ *   App users        -> user/ (download the app)
+ *   Account Managers -> AM/   (accounts, support requests)
+ *   IT Managers      -> IM/   (app performance, AI, feedback)
+ * Paths are relative to the site root. Every area is one folder deep, which
+ * is what lets requireRole() below use "../" to get back to the root.
  */
 const ROLE_HOME = {
   user: "user/download.html",
-  user_admin: "UA/dashboard.html",
-  platform_manager: "PM/dashboard.html",
+  account_manager: "AM/dashboard.html",
+  IT_manager: "IM/dashboard.html",
 };
 
 function homeFor(role) {
@@ -82,8 +127,8 @@ function homeFor(role) {
 /**
  * Like requireAuth, but also sends staff who don't belong on this page to
  * their own dashboard. Call at the top of every admin page, e.g.
- *   requireRole("user_admin");
- *   requireRole("user_admin", "platform_manager");   // shared pages
+ *   requireRole("account_manager");
+ *   requireRole("account_manager", "IT_manager");   // shared pages
  *
  * This only controls navigation. The backend must refuse the data too.
  */
@@ -91,18 +136,34 @@ function requireRole(...allowedRoles) {
   const root = "../";
   const user = Session.user;
 
-  if (!Session.isLoggedIn || !user || !homeFor(user.role)) {
-    Session.clear();
-    window.location.replace(root + "login.html");
+  // Sending the browser to the page it is already on would reload forever,
+  // which looks like the page flickering. That only happens when a page's
+  // requireRole() list doesn't match the folder it lives in, so say so
+  // instead of looping.
+  function goTo(target) {
+    const here = window.location.pathname;
+    const dest = new URL(root + target, window.location.href).pathname;
+    if (dest === here) {
+      document.documentElement.style.visibility = "";
+      document.body.innerHTML =
+        '<div class="form-error" style="margin:40px auto;max-width:620px;">' +
+        "This page redirects to itself. Check that its requireRole() line " +
+        "matches the folder it is in (AM/ pages need \"account_manager\", " +
+        'IM/ pages need "IT_manager").</div>';
+      return false;
+    }
     document.documentElement.style.visibility = "hidden";
+    window.location.replace(root + target);
     return false;
   }
 
+  if (!Session.isLoggedIn || !user || !homeFor(user.role)) {
+    Session.clear();
+    return goTo("login.html");
+  }
+
   if (!allowedRoles.includes(user.role)) {
-    window.location.replace(root + homeFor(user.role));
-    // Hide the page so its content doesn't flash before the redirect.
-    document.documentElement.style.visibility = "hidden";
-    return false;
+    return goTo(homeFor(user.role));
   }
   return true;
 }
@@ -169,9 +230,9 @@ function extractErrorMessage(payload, status) {
 
 const Auth = {
   /**
-   * Logs a staff member in. Rejects ordinary app users, since the admin site
-   * is not for them — checking here gives a clear message rather than an
-   * empty dashboard followed by 403s on every request.
+   * Logs anyone in: app users, Account Managers and IT Managers. The caller
+   * sends them to homeFor(role), and each page guards itself with
+   * requireRole(), so one login page serves all three.
    */
   async login(email, password) {
     const data = await apiFetch("/login", {
@@ -179,13 +240,57 @@ const Auth = {
       body: JSON.stringify({ email, password }),
     });
 
-    const role = data.user.role;
-    if (role !== "user_admin" && role !== "platform_manager") {
-      throw new ApiError(
-        "This account does not have administrator access.",
-        403
-      );
+    data.user.role = normalizeRole(data.user.role);
+
+    // An unknown role has nowhere to land, so refuse rather than leaving the
+    // browser on a login page that looks like it did nothing.
+    if (!homeFor(data.user.role)) {
+      throw new ApiError("This account cannot sign in here.", 403);
     }
+
+    Session.save(data.access_token, data.user);
+    return data.user;
+  },
+
+  /**
+   * Signs in on a page meant for particular roles. The site has two doors:
+   * login.html for app users and UAlogin.html for staff. Anyone who uses the
+   * wrong one — or picks the wrong admin type on the staff login — is signed
+   * straight back out and told why.
+   *
+   *   await Auth.loginAs(["user"], email, password);
+   *   await Auth.loginAs(["account_manager"], email, password);   // admin type picked
+   */
+  async loginAs(allowedRoles, email, password) {
+    const user = await this.login(email, password);
+    if (!allowedRoles.includes(user.role)) {
+      this.logout();
+
+      // Wrong door entirely, or the right door with the wrong admin type.
+      let message;
+      if (allowedRoles.includes("user")) {
+        message = "Staff accounts sign in on the staff login page.";
+      } else if (user.role === "user") {
+        message = "This is the staff login. Use the main login page for your account.";
+      } else {
+        message = `This account is not ${
+          allowedRoles.length === 1 ? "an " + roleLabel(allowedRoles[0]) : "a staff account"
+        }. It is ${roleLabel(user.role)} — pick that admin type instead.`;
+      }
+      throw new ApiError(message, 403);
+    }
+    return user;
+  },
+
+  /**
+   * Public sign-up for app users (register.html). The backend returns the
+   * same shape as /login, so the new user is signed in straight away.
+   */
+  async register({ first_name, last_name, email, password }) {
+    const data = await apiFetch("/register", {
+      method: "POST",
+      body: JSON.stringify({ first_name, last_name, email, password }),
+    });
 
     Session.save(data.access_token, data.user);
     return data.user;
