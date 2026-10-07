@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Accounts — Knowtrients Admin</title>
+<title>Dashboard — Knowtrients Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
@@ -20,7 +20,6 @@
     </a>
     <button class="logout-btn" type="button">Logout</button>
   </div>
-  
 </header>
 
 <div class="drawer-scrim" id="drawerScrim"></div>
@@ -47,38 +46,40 @@
 
 <main class="app-main" id="appMain">
   <div class="page-head">
-    <h1>Accounts</h1>
-    <a class="btn btn-primary" href="create-account.html">+ Create Account</a>
-
-  </div>
-
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <label for="typeFilter">User Type:</label>
-      <select class="input select-compact" id="typeFilter">
-        <option value="All" default>All</option>
-        <option value="Account Manager">Account Manager</option>
-        <option value="User">User</option>
-        <option value="IT Manager">IT Manager</option>
-      </select>
-    </div>
-    <div class="search-box">
-      <span class="icon">🔍</span>
-      <input class="input" id="searchInput" placeholder="Search user…">
+    <div>
+      <h1>Dashboard</h1>
     </div>
   </div>
 
-  <div class="data-table">
-    <table>
-      <thead>
-        <tr>
-          <th>User ID</th><th>First Name</th><th>Last Name</th><th>Email</th><th>User Type</th><th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="accountsBody"></tbody>
-    </table>
+  <div id="pageError" class="form-error" style="display:none;"></div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
+  <div class="dash-grid">
+    <div>
+      <div class="card" style="margin-bottom:24px;">
+        <h2>Accounts</h2>
+        <div class="shortcut-row" id="shortcutRow">
+          <a class="shortcut-pill" href="accounts.html?type=User">Users</a>
+          <a class="shortcut-pill" href="accounts.html?type=Account%20Manager">Account Managers</a>
+          <a class="shortcut-pill" href="accounts.html?type=IT%20Manager">IT Managers</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex-between" style="margin-bottom:14px;">
+          <h2 class="mt-0">Pending Support Requests</h2>
+          <a class="btn btn-ghost btn-sm" href="requests.html?filter=All">View all</a>
+        </div>
+        <div id="requestList"></div>
+      </div>
+    </div>
+
+    <div class="updates-card">
+      <h2>At a Glance</h2>
+      <ul class="timeline" id="glanceList"></ul>
+    </div>
   </div>
-  <div id="emptyState" class="empty-hint" style="display:none;">No accounts match your search.</div>
 </main>
 
 <script src="../js/api.js"></script>
@@ -87,74 +88,88 @@
 <script src="../js/app.js"></script>
 
 <script>
-  requireRole("acconunt_manager");
+  requireRole("account_manager");
 
-  const params = new URLSearchParams(window.location.search);
-  const initialType = params.get("type") || "All";
-  const typeFilter = document.getElementById("typeFilter");
-  const searchInput = document.getElementById("searchInput");
-  const body = document.getElementById("accountsBody");
-  const emptyState = document.getElementById("emptyState");
+  const errorEl = document.getElementById("pageError");
+  const statGrid = document.getElementById("statGrid");
+  const requestList = document.getElementById("requestList");
+  const glanceList = document.getElementById("glanceList");
 
-  typeFilter.value = initialType;
-
-  document.querySelectorAll('.sb-group a[data-type]').forEach(a => {
-    if (a.dataset.type === initialType) a.classList.add("active");
-  });
-
-  function showRow(text, isError){
-    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;${
-      isError ? "color:var(--danger);" : "color:var(--muted);"
-    }">${escapeHtml(text)}</td></tr>`;
-    emptyState.style.display = "none";
+  function tile(value, label){
+    return `<div class="stat-tile">
+      <div class="stat-value">${escapeHtml(value)}</div>
+      <div class="stat-label">${escapeHtml(label)}</div>
+    </div>`;
   }
 
-  async function render(){
-    showRow("Loading accounts…", false);
+  async function loadStats(){
+    statGrid.innerHTML = `<div class="empty-hint">Loading…</div>`;
     try {
-      const rows = await Accounts.list({ 
-        userType: typeFilter.value,
-        q: searchInput.value.trim(),
-      });
+      const s = await Dashboard.summary();
 
-      body.innerHTML = "";
-      rows.forEach(a => {
-        const tr = document.createElement("tr");
-        tr.style.cursor = "pointer";
-        tr.addEventListener("click", () =>
-          window.location.href = "view-account.html?id=" + a.id);
-        tr.innerHTML = `
-          <td class="mono-id">${escapeHtml(a.display_id || a.id)}</td>
-          <td>${escapeHtml(a.first_name)}</td>
-          <td>${escapeHtml(a.last_name)}</td>
-          <td class="email-cell">${escapeHtml(a.email)}</td>
-          <td>${escapeHtml(a.user_type)}</td>
-          <td><span class="status-dot status-${a.status.toLowerCase()}">${a.status}</span></td>
-        `;
-        body.appendChild(tr);
-      });
+      statGrid.innerHTML = [
+        tile(s.total_users, "Total users"),
+        tile(s.active_users, "Active users"),
+        tile(s.suspended_users, "Suspended"),
+        tile(s.unresolved_requests, "Pending requests"),
+      ].join("");
 
-      emptyState.style.display = rows.length ? "none" : "block";
+      glanceList.innerHTML = [
+        [`${s.new_users_7d} new account${s.new_users_7d === 1 ? "" : "s"}`, "Last 7 days"],
+        [`${s.logs_today} food log${s.logs_today === 1 ? "" : "s"} recorded`, "Today"],
+        [`${s.recommendations_today} recommendation${s.recommendations_today === 1 ? "" : "s"} served`, "Today"],
+        [`${s.resolved_requests} request${s.resolved_requests === 1 ? "" : "s"} resolved`, "All time"],
+        [`${s.account_managers} account manager${s.account_managers === 1 ? "" : "s"}, ${s.IT_managers} IT manager${s.IT_managers === 1 ? "" : "s"}`, "Staff"],
+      ].map(([text, when]) => `<li>
+        <span class="t-time">${escapeHtml(when)}</span>
+        <span class="t-text">${escapeHtml(text)}</span>
+      </li>`).join("");
     } catch (err) {
-      showRow(err.message, true);
+      statGrid.innerHTML = "";
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
     }
   }
 
-  // Debounced so typing doesn't fire a request per keystroke.
-  let searchTimer;
-  searchInput.addEventListener("input", () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(render, 300);
-  });
+  async function loadRequests(){
+    renderMessage(requestList, "Loading requests…");
+    try {
+      const rows = await Requests.list({ status: "unresolved" });
 
-  typeFilter.addEventListener("change", () => {
-    const url = new URL(window.location);
-    url.searchParams.set("type", typeFilter.value);
-    window.history.replaceState({}, "", url);
-    render();
-  });
+      if (!rows.length) {
+        renderMessage(requestList, "No pending requests. All caught up.");
+        return;
+      }
 
-  render();
+      requestList.innerHTML = "";
+      rows.slice(0, 4).forEach(r => {
+        const el = document.createElement("div");
+        el.className = "request-card";
+        el.style.cursor = "pointer";
+        el.addEventListener("click", () =>
+          window.location.href = "request-detail.html?id=" + r.id);
+        el.innerHTML = `
+          <div class="req-top">
+            <span class="req-avatar">\u{1F464}</span>
+            <span class="req-name">${escapeHtml(r.user_name || "Unknown")}</span>
+            <span class="req-time">${escapeHtml(formatDateTime(r.created_at))}</span>
+          </div>
+          <div class="req-subject">${escapeHtml(r.subject)}</div>
+          <div class="req-preview">${escapeHtml(r.body.slice(0, 90))}${r.body.length > 90 ? "…" : ""}</div>
+          <div class="req-actions">
+            <span class="attachment-chip">${escapeHtml(categoryLabel(r.category))}</span>
+            <span class="req-arrow">\u203A</span>
+          </div>
+        `;
+        requestList.appendChild(el);
+      });
+    } catch (err) {
+      renderMessage(requestList, err.message, true);
+    }
+  }
+
+  loadStats();
+  loadRequests();
 </script>
 </body>
 </html>

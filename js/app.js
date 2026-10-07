@@ -78,6 +78,13 @@ function initWelcomeChip(){
   chip.append(avatar, ` Welcome, ${user.first_name}`);
 }
 
+// Going "back" after logging out can show a cached copy of a page, scripts
+// and all, so the guards never re-run and it looks like logout did nothing.
+// Reloading on a restored page sends the visitor to the login page instead.
+window.addEventListener("pageshow", (e)=>{
+  if(e.persisted) window.location.reload();
+});
+
 document.addEventListener("DOMContentLoaded", ()=>{
   initDrawer();
   initSidebar();
