@@ -11,10 +11,9 @@
 <body>
 
 <header class="app-topbar">
-  <div class="app-topbar-left">
-    <button class="hamburger" id="sidebarToggle" aria-label="Toggle menu">☰</button>
-    <a class="brand" href="dashboard.html" style="font-size:1.05rem;"><span class="brand-mark" style="width:24px;height:24px;font-size:13px;">✦</span> Knowtrients</a>
-  </div>
+  <button class="brand" id="brandTrigger" aria-label="Open menu">
+    <span class="brand-mark">✦</span> Knowtrients
+  </button>
   <div class="avatar-chip">
     <a class="welcome-chip" href="../AM/my-account.html" title="My Account">
       <span class="avatar">👤</span> Welcome, Admin
@@ -23,36 +22,165 @@
   </div>
 </header>
 
-<aside class="app-sidebar" id="appSidebar">
-  <div class="sb-group">
-    <h3><a href="dashboard.html">Dashboard</a></h3>
+<div class="drawer-scrim" id="drawerScrim"></div>
+<nav class="drawer" id="drawer" aria-label="Site navigation">
+  <div class="drawer-section">
+    <a href="dashboard.html"><h2>Home</h2></a>
   </div>
-</aside>
+  <div class="drawer-section">
+    <a href="analytics.html"><h3>Data Analytics</h3></a>
+    <ul>
+      <li><a href="analytics.html#performance">Performance Metrics</a></li>
+      <li><a href="analytics.html#accuracy">Accuracy Metrics</a></li>
+    </ul>
+  </div>
+  <div class="drawer-section">
+    <a href="feedback.html?filter=All"><h3>Feedback</h3></a>
+    <ul>
+      <li><a href="feedback.html?filter=Unresolved">Feedback Received</a></li>
+      <li><a href="feedback.html?filter=Resolved">Resolved Feedback</a></li>
+    </ul>
+  </div>
+</nav>
 
 <main class="app-main" id="appMain">
   <div class="page-head">
     <h1>Dashboard</h1>
   </div>
 
-  <div class="card" style="max-width:720px;">
-    <h2>IT Manager tools are on the way</h2>
-    <p style="font-size:.92rem;">
-      This area will cover the app's performance, AI reliability and the
-      feedback users send about them.
-    </p>
-    <p style="font-size:.92rem;margin-bottom:0;">
-      Account issues and support requests are handled by Account Managers.
-    </p>
+  <div id="pageError" class="form-error" style="display:none;"></div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
+  <div class="dash-grid">
+    <div>
+      <div class="card chart-card" style="margin-bottom:24px;">
+        <div class="flex-between" style="margin-bottom:6px;">
+          <h2 class="mt-0">AI Accuracy</h2>
+          <a class="btn btn-ghost btn-sm" href="analytics.html">Full analytics</a>
+        </div>
+        <div class="metric-row" id="accuracyRow"></div>
+        <div id="accuracyChart"><div class="empty-hint">Loading chart\u2026</div></div>
+      </div>
+
+      <div class="card">
+        <div class="flex-between" style="margin-bottom:14px;">
+          <h2 class="mt-0">Feedback Received</h2>
+          <a class="btn btn-ghost btn-sm" href="feedback.html?filter=All">View all</a>
+        </div>
+        <div id="feedbackList"></div>
+      </div>
+    </div>
+
+    <div class="updates-card">
+      <h2>Updates</h2>
+      <ul class="timeline" id="updatesList"></ul>
+    </div>
   </div>
 </main>
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
 <script src="../js/mock-api.js"></script>
+<script src="../js/chart.js"></script>
 <script src="../js/app.js"></script>
-
 <script>
   requireRole("IT_manager");
+
+  const $ = (id) => document.getElementById(id);
+
+  function tile(value, label){
+    return `<div class="stat-tile">
+      <div class="stat-value">${escapeHtml(value)}</div>
+      <div class="stat-label">${escapeHtml(label)}</div>
+    </div>`;
+  }
+
+  async function loadAnalytics(){
+    $("statGrid").innerHTML = `<div class="empty-hint">Loading\u2026</div>`;
+    try {
+      const a = await Analytics.summary();
+
+      $("statGrid").innerHTML = [
+        tile(a.uptime_pct + "%", "Uptime (30 days)"),
+        tile((a.avg_response_ms / 1000).toFixed(1) + "s", "Avg response time"),
+        tile(a.errors_24h, "Errors (24h)"),
+        tile(a.open_feedback, "Open feedback"),
+      ].join("");
+
+      // Today's figures sit above the chart, as in the mockup.
+      $("accuracyRow").innerHTML = [
+        ["Dietary", a.accuracy_today.dietary, "#8b7bd8"],
+        ["Activity", a.accuracy_today.activity, "#e2635c"],
+        ["Sleep", a.accuracy_today.sleep, "#4cc9e8"],
+      ].map(([name, value, colour]) =>
+        `<span><span class="chart-dot" style="background:${colour}"></span>
+          ${name} \u2013 <b style="color:${colour}">${value}%</b></span>`).join("");
+
+      lineChart($("accuracyChart"), {
+        labels: a.labels,
+        series: [
+          { name: "Dietary", color: "#8b7bd8", values: a.accuracy.dietary },
+          { name: "Activity", color: "#e2635c", values: a.accuracy.activity },
+          { name: "Sleep", color: "#4cc9e8", values: a.accuracy.sleep },
+        ],
+      });
+
+      $("updatesList").innerHTML = [
+        [`${a.open_feedback} feedback item${a.open_feedback === 1 ? "" : "s"} waiting`, "Now"],
+        [`${a.insights_generated} insights generated`, "All time"],
+        [`${a.likes} likes, ${a.dislikes} dislikes`, "All time"],
+        [`${a.errors_24h} error${a.errors_24h === 1 ? "" : "s"} logged`, "Last 24 hours"],
+      ].map(([text, when]) => `<li>
+        <span class="t-time">${escapeHtml(when)}</span>
+        <span class="t-text">${escapeHtml(text)}</span>
+      </li>`).join("");
+    } catch (err) {
+      $("statGrid").innerHTML = "";
+      $("accuracyChart").innerHTML = "";
+      $("pageError").textContent = err.message;
+      $("pageError").style.display = "block";
+    }
+  }
+
+  async function loadFeedback(){
+    renderMessage($("feedbackList"), "Loading feedback\u2026");
+    try {
+      const rows = await Feedback.list({ status: "unresolved" });
+      if (!rows.length) {
+        renderMessage($("feedbackList"), "No open feedback. All caught up.");
+        return;
+      }
+
+      $("feedbackList").innerHTML = "";
+      rows.slice(0, 4).forEach(f => {
+        const el = document.createElement("div");
+        el.className = "request-card";
+        el.style.cursor = "pointer";
+        el.addEventListener("click", () =>
+          window.location.href = "feedback-detail.html?id=" + f.id);
+        el.innerHTML = `
+          <div class="req-top">
+            <span class="req-avatar">\u{1F464}</span>
+            <span class="req-name">${escapeHtml(f.user_name || "Unknown")}</span>
+            <span class="req-time">${escapeHtml(formatDateTime(f.created_at))}</span>
+          </div>
+          <div class="req-subject">${escapeHtml(f.subject)}</div>
+          <div class="req-preview">${escapeHtml(f.body.slice(0, 90))}${f.body.length > 90 ? "\u2026" : ""}</div>
+          <div class="req-actions">
+            <span class="attachment-chip">${escapeHtml(feedbackLabel(f.category))}</span>
+            <span class="req-arrow">\u203A</span>
+          </div>
+        `;
+        $("feedbackList").appendChild(el);
+      });
+    } catch (err) {
+      renderMessage($("feedbackList"), err.message, true);
+    }
+  }
+
+  loadAnalytics();
+  loadFeedback();
 </script>
 </body>
 </html>

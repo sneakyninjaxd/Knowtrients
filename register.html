@@ -1,131 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Register — Knowtrients</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+/* ============================================================
+   KNOWTRIENTS — shared UI behaviors
+   ============================================================ */
 
-<header class="topbar">
-  <a class="brand" href="index.html"><span class="brand-mark">✦</span> Knowtrients</a>
-  <div class="topbar-right">
-    <a class="topbar-link" href="login.html">Login</a>
-    <a class="pill-login" href="index.html">Back to Home</a>
-  </div>
-</header>
+// ---- Marketing drawer (public site) ----
+function initDrawer(){
+  const brand = document.getElementById("brandTrigger");
+  const drawer = document.getElementById("drawer");
+  const scrim = document.getElementById("drawerScrim");
+  if(!brand || !drawer || !scrim) return;
 
-<main class="auth-wrap">
-  <form class="auth-card" id="registerForm" novalidate>
-    <h1>Register</h1>
-    <p class="auth-sub">Start your Knowtrients journey here!</p>
+  function open(){ drawer.classList.add("open"); scrim.classList.add("open"); }
+  function close(){ drawer.classList.remove("open"); scrim.classList.remove("open"); }
 
-    <div id="registrationError" class="form-error" style="display:none;"></div>
+  brand.addEventListener("click", (e)=>{ e.preventDefault(); drawer.classList.contains("open") ? close() : open(); });
+  scrim.addEventListener("click", close);
+  document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") close(); });
+}
 
-    <div class="field" id="registerEmailField">
-      <label for="registerEmail">Email</label>
-      <input class="input" type="email" id="registerEmail" placeholder="example123@gmail.com" required>
-      <div class="field-hint">Enter a valid email address.</div>
-    </div>
+// ---- App sidebar (admin shell) ----
+function initSidebar(){
+  const btn = document.getElementById("sidebarToggle");
+  const sidebar = document.getElementById("appSidebar");
+  const main = document.getElementById("appMain");
+  if(!btn || !sidebar || !main) return;
 
-    <div class="field" id="registerFirstNameField">
-      <label for="registerFirstName">First Name</label>
-      <input class="input" type="text" id="registerFirstName" placeholder="John" required>
-      <div class="field-hint">Enter your first name.</div>
-    </div>
-
-    <div class="field" id="registerLastNameField">
-      <label for="registerLastName">Last Name</label>
-      <input class="input" type="text" id="registerLastName" placeholder="Doe" required>
-      <div class="field-hint">Enter your last name.</div>
-    </div>
-
-    <div class="field" id="registerPasswordField">
-      <label for="registerPassword">Password</label>
-      <input class="input" type="password" id="registerPassword" placeholder="••••••••••" required>
-      <div class="field-hint">Enter your password.</div>
-    </div>
-
-    <div class="field" id="registerConfirmPasswordField">
-      <label for="registerConfirmPassword">Confirm Password</label>
-      <input class="input" type="password" id="registerConfirmPassword" placeholder="••••••••••" required>
-      <div class="field-hint">Confirm your password.</div>
-    </div>
-
-
-    <button type="submit" class="btn btn-primary btn-block">Register</button>
-
-    <div class="auth-alt">
-      <p>Already have an account? <a href="login.html">Log in</a></p>
-    </div>
-  </form>
-</main>
-
-<script src="js/api.js"></script>
-<!-- Mock backend: delete the next line to use the real API -->
-<script src="js/mock-api.js"></script>
-<script src="js/app.js"></script>
-<script>
-  const form = document.getElementById("registerForm");
-  const submitBtn = form.querySelector("button[type=submit]");
-  const errorBox = document.getElementById("registrationError");
-  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const $ = (id) => document.getElementById(id);
-
-  // Already signed in: skip the form and go to wherever this role belongs.
-  if (Session.isLoggedIn && homeFor(Session.user?.role)) {
-    window.location.href = homeFor(Session.user.role);
-  }
-
-  // Clear a field's error as soon as it's edited.
-  form.querySelectorAll(".input").forEach((input) => {
-    input.addEventListener("input", () => markFieldError(input.closest(".field"), false));
-  });
-
-  function validate(){
-    const password = $("registerPassword").value;
-    const checks = [
-      ["registerEmailField", !EMAIL_PATTERN.test($("registerEmail").value.trim())],
-      ["registerFirstNameField", !$("registerFirstName").value.trim()],
-      ["registerLastNameField", !$("registerLastName").value.trim()],
-      // TODO: tighten this if the team agrees on stronger password rules.
-      ["registerPasswordField", password.length < 8],
-      ["registerConfirmPasswordField", $("registerConfirmPassword").value !== password],
-    ];
-    checks.forEach(([id, bad]) => markFieldError($(id), bad));
-    const firstBad = checks.find(([, bad]) => bad);
-    if (firstBad) $(firstBad[0]).querySelector(".input").focus();
-    return !firstBad;
-  }
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    errorBox.style.display = "none";
-    if (!validate()) return;
-
-    submitBtn.disabled = true;
-    submitBtn.textContent = "Creating your account\u2026";
-
-    try {
-      // Registering signs the user in, so they land straight on the download
-      // page instead of having to log in again.
-      const user = await Auth.register({
-        first_name: $("registerFirstName").value.trim(),
-        last_name: $("registerLastName").value.trim(),
-        email: $("registerEmail").value.trim(),
-        password: $("registerPassword").value,
-      });
-      window.location.href = homeFor(user.role);
-    } catch (err) {
-      errorBox.textContent = err.message;
-      errorBox.style.display = "block";
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Register";
+  btn.addEventListener("click", ()=>{
+    if(window.innerWidth <= 760){
+      sidebar.classList.toggle("open");
+    } else {
+      sidebar.classList.toggle("collapsed");
+      main.classList.toggle("expanded");
     }
   });
-</script>
-</body>
-</html>
+}
+
+// ---- Generic modal helpers ----
+function openModal(id){
+  const m = document.getElementById(id);
+  if(m) m.classList.add("open");
+}
+function closeModal(id){
+  const m = document.getElementById(id);
+  if(m) m.classList.remove("open");
+}
+
+// ---- Toast ----
+function showToast(message){
+  let toast = document.getElementById("globalToast");
+  if(!toast){
+    toast = document.createElement("div");
+    toast.id = "globalToast";
+    toast.className = "toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(()=> toast.classList.remove("show"), 2600);
+}
+
+// ---- Simple field validation helper for auth forms ----
+function markFieldError(fieldEl, hasError){
+  if(!fieldEl) return;
+  fieldEl.classList.toggle("field-error", hasError);
+}
+
+// ---- Welcome chip (admin shell): greet the signed-in admin by name ----
+function initWelcomeChip(){
+  const chip = document.querySelector(".welcome-chip");
+  if(!chip || typeof Session === "undefined") return;
+  const user = Session.user;
+  if(!user || !user.first_name) return;
+  chip.innerHTML = "";
+  const avatar = document.createElement("span");
+  avatar.className = "avatar";
+  avatar.textContent = "\u{1F464}";
+  chip.append(avatar, ` Welcome, ${user.first_name}`);
+}
+
+// Going "back" after logging out can show a cached copy of a page, scripts
+// and all, so the guards never re-run and it looks like logout did nothing.
+// Reloading on a restored page sends the visitor to the login page instead.
+window.addEventListener("pageshow", (e)=>{
+  if(e.persisted) window.location.reload();
+});
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  initDrawer();
+  initSidebar();
+  initWelcomeChip();
+});
+
+// ---- Logout ----
+// One listener on the document rather than one per button. This way it works
+// no matter when the button appears, even if a page rebuilds its header, and
+// it can't miss a button by running before the page is ready.
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest('.logout-btn, [data-action="logout"]');
+  if (!btn) return;
+
+  e.preventDefault();
+  if (!confirm("Are you sure you want to log out?")) return;
+
+  // Clear the stored token, or the next visit walks straight back in.
+  if (typeof Auth !== "undefined") Auth.logout();
+
+  // The admin pages sit one folder deep (AM/, IM/, user/); anything at the
+  // site root needs login.html without the "../".
+  const atRoot = !/\/(AM|IM|user)\//.test(window.location.pathname);
+  window.location.replace((atRoot ? "" : "../") + "login.html");
+});

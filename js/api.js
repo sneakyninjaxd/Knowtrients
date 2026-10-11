@@ -42,12 +42,20 @@ function normalizeRole(role) {
   return LEGACY_ROLES[role] || role;
 }
 
+/**
+ * The session is kept in sessionStorage, not localStorage, so it lasts only
+ * as long as the browser tab. Moving between pages and refreshing keep you
+ * signed in; closing the tab or the browser signs you out, so the next visit
+ * starts at the login page instead of walking straight in.
+ */
+const store = window.sessionStorage;
+
 const Session = {
   get token() {
-    return localStorage.getItem(TOKEN_KEY);
+    return store.getItem(TOKEN_KEY);
   },
   get user() {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = store.getItem(USER_KEY);
     try {
       const user = raw ? JSON.parse(raw) : null;
       if (user && user.role) user.role = normalizeRole(user.role);
@@ -57,10 +65,14 @@ const Session = {
     }
   },
   save(token, user) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    store.setItem(TOKEN_KEY, token);
+    store.setItem(USER_KEY, JSON.stringify(user));
   },
   clear() {
+    store.removeItem(TOKEN_KEY);
+    store.removeItem(USER_KEY);
+    // Older builds kept the session in localStorage; clear that too so an
+    // old one can't sign someone back in.
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   },
@@ -404,6 +416,59 @@ const Requests = {
     });
   },
 };
+
+/* ---- IT Manager: analytics and feedback ----------------- */
+
+const Analytics = {
+  /** Accuracy series for the chart plus the usage counters. */
+  async summary() {
+    return apiFetch("/im/analytics");
+  },
+};
+
+const Feedback = {
+  /** @param {{status?: string, q?: string}} filters */
+  async list(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status && filters.status !== "All") {
+      params.set("status", filters.status.toLowerCase());
+    }
+    if (filters.q) params.set("q", filters.q);
+
+    const query = params.toString();
+    return apiFetch("/im/feedback" + (query ? `?${query}` : ""));
+  },
+
+  async get(id) {
+    return apiFetch(`/im/feedback/${id}`);
+  },
+
+  async reply(id, body, resolve = true) {
+    return apiFetch(`/im/feedback/${id}/reply`, {
+      method: "POST",
+      body: JSON.stringify({ body, resolve }),
+    });
+  },
+
+  async setStatus(id, status) {
+    return apiFetch(`/im/feedback/${id}/status?status=${status}`, {
+      method: "PATCH",
+    });
+  },
+};
+
+/** Feedback categories are slugs; these are what the pages show. */
+const FEEDBACK_LABELS = {
+  ai_accuracy: "AI Accuracy",
+  performance: "Performance",
+  explanation: "Explanation Quality",
+  crash: "Crash / Bug",
+  other: "Other",
+};
+
+function feedbackLabel(slug) {
+  return FEEDBACK_LABELS[slug] || "Other";
+}
 
 /* ---- Dashboard ------------------------------------------ */
 

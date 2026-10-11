@@ -73,10 +73,9 @@
   const errorBox = document.getElementById("loginError");
   const $ = (id) => document.getElementById(id);
 
-  // Already signed in: skip the form and go wherever this role belongs.
-  if (Session.isLoggedIn && homeFor(Session.user?.role)) {
-    window.location.href = homeFor(Session.user.role);
-  }
+  // No "already signed in" shortcut: opening a login or register page always
+  // shows the form, so nobody is carried into an account they didn't just
+  // sign in to.
 
   form.querySelectorAll(".input").forEach((input) => {
     const clear = () => markFieldError(input.closest(".field"), false);

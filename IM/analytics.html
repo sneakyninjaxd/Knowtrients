@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Analytics — Knowtrients IT Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-topbar">
+  <button class="brand" id="brandTrigger" aria-label="Open menu">
+    <span class="brand-mark">✦</span> Knowtrients
+  </button>
+  <div class="avatar-chip">
+    <a class="welcome-chip" href="../AM/my-account.html" title="My Account">
+      <span class="avatar">👤</span> Welcome, Admin
+    </a>
+    <button class="logout-btn" type="button">Logout</button>
+  </div>
+</header>
+
+<div class="drawer-scrim" id="drawerScrim"></div>
+<nav class="drawer" id="drawer" aria-label="Site navigation">
+  <div class="drawer-section">
+    <a href="dashboard.html"><h2>Home</h2></a>
+  </div>
+  <div class="drawer-section">
+    <a href="analytics.html"><h3>Data Analytics</h3></a>
+    <ul>
+      <li><a href="analytics.html#performance">Performance Metrics</a></li>
+      <li><a href="analytics.html#accuracy">Accuracy Metrics</a></li>
+    </ul>
+  </div>
+  <div class="drawer-section">
+    <a href="feedback.html?filter=All"><h3>Feedback</h3></a>
+    <ul>
+      <li><a href="feedback.html?filter=Unresolved">Feedback Received</a></li>
+      <li><a href="feedback.html?filter=Resolved">Resolved Feedback</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="app-main" id="appMain">
+  <div class="page-head">
+    <h1>Data Analytics</h1>
+  </div>
+
+  <div id="pageError" class="form-error" style="display:none;"></div>
+
+  <div class="card chart-card" id="accuracy" style="margin-bottom:24px;">
+    <h2>AI Accuracy</h2>
+    <div class="metric-row" id="accuracyRow"></div>
+    <div id="accuracyChart"><div class="empty-hint">Loading chart\u2026</div></div>
+    <p class="card-note" id="accuracyNote"></p>
+  </div>
+
+  <h2 id="performance" style="margin:28px 0 14px;">Performance</h2>
+  <div class="stat-grid" id="performanceGrid"></div>
+
+  <h2 style="margin:28px 0 14px;">Usage</h2>
+  <div class="stat-grid" id="usageGrid"></div>
+</main>
+
+<script src="../js/api.js"></script>
+<!-- Mock backend: delete the next line to use the real API -->
+<script src="../js/mock-api.js"></script>
+<script src="../js/chart.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  requireRole("IT_manager");
+
+  const $ = (id) => document.getElementById(id);
+
+  function tile(value, label){
+    return `<div class="stat-tile">
+      <div class="stat-value">${escapeHtml(value)}</div>
+      <div class="stat-label">${escapeHtml(label)}</div>
+    </div>`;
+  }
+
+  async function load(){
+    try {
+      const a = await Analytics.summary();
+
+      $("accuracyRow").innerHTML = [
+        ["Dietary", a.accuracy_today.dietary, "#8b7bd8"],
+        ["Activity", a.accuracy_today.activity, "#e2635c"],
+        ["Sleep", a.accuracy_today.sleep, "#4cc9e8"],
+      ].map(([name, value, colour]) =>
+        `<span><span class="chart-dot" style="background:${colour}"></span>
+          ${name} \u2013 <b style="color:${colour}">${value}%</b></span>`).join("");
+
+      lineChart($("accuracyChart"), {
+        labels: a.labels,
+        series: [
+          { name: "Dietary", color: "#8b7bd8", values: a.accuracy.dietary },
+          { name: "Activity", color: "#e2635c", values: a.accuracy.activity },
+          { name: "Sleep", color: "#4cc9e8", values: a.accuracy.sleep },
+        ],
+      });
+
+      $("accuracyNote").textContent =
+        `Averages over the period \u2014 dietary ${a.accuracy_average.dietary}%, ` +
+        `activity ${a.accuracy_average.activity}%, sleep ${a.accuracy_average.sleep}%.`;
+
+      $("performanceGrid").innerHTML = [
+        tile(a.uptime_pct + "%", "Uptime (30 days)"),
+        tile((a.avg_response_ms / 1000).toFixed(1) + "s", "Avg response time"),
+        tile(a.errors_24h, "Errors (24h)"),
+        tile(a.open_feedback, "Open feedback"),
+      ].join("");
+
+      $("usageGrid").innerHTML = [
+        tile(a.insights_generated, "Insights generated"),
+        tile(a.likes, "Likes"),
+        tile(a.dislikes, "Dislikes"),
+        tile(a.unrated, "Unrated"),
+        tile(a.total_users, "Total users"),
+        tile(a.subscribers, "Subscribers"),
+        tile(a.resolved_feedback, "Feedback resolved"),
+      ].join("");
+    } catch (err) {
+      $("pageError").textContent = err.message;
+      $("pageError").style.display = "block";
+      $("accuracyChart").innerHTML = "";
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
