@@ -15,7 +15,7 @@
     <span class="brand-mark">✦</span> Knowtrients
   </button>
   <div class="avatar-chip">
-    <a class="welcome-chip" href="../AM/my-account.html" title="My Account">
+    <a class="welcome-chip" href="../IM/my-account.html" title="My Account">
       <span class="avatar">👤</span> Welcome, Admin
     </a>
     <button class="logout-btn" type="button">Logout</button>
@@ -51,9 +51,9 @@
   <div id="pageError" class="form-error" style="display:none;"></div>
 
   <div class="card chart-card" id="accuracy" style="margin-bottom:24px;">
-    <h2>AI Accuracy</h2>
+    <h2>AI Satisfaction Level</h2>
     <div class="metric-row" id="accuracyRow"></div>
-    <div id="accuracyChart"><div class="empty-hint">Loading chart\u2026</div></div>
+    <div id="accuracyChart"><div class="empty-hint">Loading chart</div></div>
     <p class="card-note" id="accuracyNote"></p>
   </div>
 
@@ -62,6 +62,9 @@
 
   <h2 style="margin:28px 0 14px;">Usage</h2>
   <div class="stat-grid" id="usageGrid"></div>
+
+  <h2 style="margin:28px 0 14px;">Feedback</h2>
+  <div class="stat-grid" id="feedbackGrid"></div>
 </main>
 
 <script src="../js/api.js"></script>
@@ -91,7 +94,7 @@
         ["Sleep", a.accuracy_today.sleep, "#4cc9e8"],
       ].map(([name, value, colour]) =>
         `<span><span class="chart-dot" style="background:${colour}"></span>
-          ${name} \u2013 <b style="color:${colour}">${value}%</b></span>`).join("");
+          ${name} <b style="color:${colour}">${value}%</b></span>`).join("");
 
       lineChart($("accuracyChart"), {
         labels: a.labels,
@@ -103,25 +106,30 @@
       });
 
       $("accuracyNote").textContent =
-        `Averages over the period \u2014 dietary ${a.accuracy_average.dietary}%, ` +
+        `Averages over the period dietary ${a.accuracy_average.dietary}%, ` +
         `activity ${a.accuracy_average.activity}%, sleep ${a.accuracy_average.sleep}%.`;
 
       $("performanceGrid").innerHTML = [
         tile(a.uptime_pct + "%", "Uptime (30 days)"),
-        tile((a.avg_response_ms / 1000).toFixed(1) + "s", "Avg response time"),
-        tile(a.errors_24h, "Errors (24h)"),
-        tile(a.open_feedback, "Open feedback"),
+        tile(a.errors_24h, "Pending Bug Reports"),
       ].join("");
 
       $("usageGrid").innerHTML = [
+        tile(a.total_users, "Total users"),
+        tile(a.subscribers, "Premium Subscribers"),
         tile(a.insights_generated, "Insights generated"),
+      
+      ].join("");
+
+      $("feedbackGrid").innerHTML = [
+        tile(a.total_feedback, "Total feedback"),
         tile(a.likes, "Likes"),
         tile(a.dislikes, "Dislikes"),
         tile(a.unrated, "Unrated"),
-        tile(a.total_users, "Total users"),
-        tile(a.subscribers, "Subscribers"),
-        tile(a.resolved_feedback, "Feedback resolved"),
       ].join("");
+
+
+
     } catch (err) {
       $("pageError").textContent = err.message;
       $("pageError").style.display = "block";
