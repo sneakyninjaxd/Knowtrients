@@ -15,39 +15,37 @@
     <span class="brand-mark">✦</span> Knowtrients
   </button>
   <div class="avatar-chip">
-    <a class="welcome-chip" href="my-account.html" title="My Account">
-      <span class="avatar">👤 </span> Welcome, Admin
+    <a class="welcome-chip" href="my-PAaccount.html" title="My Account">
+      <span class="avatar">👤</span> Welcome, Admin
     </a>
     <button class="logout-btn" type="button">Logout</button>
   </div>
-  
 </header>
 
 <div class="drawer-scrim" id="drawerScrim"></div>
 <nav class="drawer" id="drawer" aria-label="Site navigation">
   <div class="drawer-section">
-    <a href="dashboard.html?type=All"><h2>Home</h2></a>
+    <a href="dashboard.html"><h2>Home</h2></a>
   </div>
   <div class="drawer-section">
-    <a href="accounts.html?type=All"><h3>Accounts</h3></a>
+    <a href="analytics.html"><h3>Data Analytics</h3></a>
     <ul>
-      <li><a href="accounts.html?type=Account%20Manager">Account Managers</a></li>
-      <li><a href="accounts.html?type=User">Users</a></li>
-      <li><a href="accounts.html?type=IT%20Manager">IT Managers</a></li>
+      <li><a href="analytics.html#performance">Performance Metrics</a></li>
+      <li><a href="analytics.html#accuracy">Accuracy Metrics</a></li>
     </ul>
   </div>
   <div class="drawer-section">
-    <a href="requests.html?filter=All"><h3>Requests</h3></a>
+    <a href="feedback.html?filter=All"><h3>Feedback</h3></a>
     <ul>
-      <li><a href="requests.html?filter=Unresolved">Pending Requests</a></li>
-      <li><a href="requests.html?filter=Resolved">Resolved Requests</a></li>
+      <li><a href="feedback.html?filter=Unresolved">Feedback Received</a></li>
+      <li><a href="feedback.html?filter=Resolved">Resolved Feedback</a></li>
     </ul>
   </div>
 </nav>
 
 <main class="app-main" id="appMain">
   <div class="page-head">
-    <h1>My Account</h1>
+    <h1>My IM Account</h1>
   </div>
 
   <div id="pageError" class="form-error" style="display:none;max-width:620px;"></div>
@@ -129,22 +127,13 @@
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
-<!-- <script src="../js/mock-api.js"></script> -->
+<script src="../js/mock-api.js"></script>
 <script src="../js/app.js"></script>
 <script>
-  requireRole("account_manager", "IT_manager");
+  requireRole("platform_administrator");
 
   const $ = (id) => document.getElementById(id);
   let me = null;
-
-  // My Account is shared with IT Managers, but the Accounts and Requests menu
-  // is Account Manager work, so IT Managers get their own short menu instead.
-  if (Session.user?.role === "IT_manager") {
-    document.getElementById("drawer").innerHTML = `
-      <div class="drawer-section">
-        <a href="../IM/dashboard.html"><h2>Home</h2></a>
-      </div>`;
-  }
 
   function showBox(el, message){
     el.textContent = message;
