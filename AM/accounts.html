@@ -20,7 +20,6 @@
     </a>
     <button class="logout-btn" type="button">Logout</button>
   </div>
-  
 </header>
 
 <div class="drawer-scrim" id="drawerScrim"></div>
@@ -31,9 +30,9 @@
   <div class="drawer-section">
     <a href="accounts.html?type=All"><h3>Accounts</h3></a>
     <ul>
-      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
+      <li><a href="accounts.html?type=Account%20Manager">Account Managers</a></li>
       <li><a href="accounts.html?type=User">Users</a></li>
-      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+      <li><a href="accounts.html?type=IT%20Manager">IT Managers</a></li>
     </ul>
   </div>
   <div class="drawer-section">
@@ -44,8 +43,6 @@
     </ul>
   </div>
 </nav>
-
-
 
 <main class="app-main" id="appMain">
   <div class="page-head">
@@ -64,8 +61,8 @@
         <h2>Accounts</h2>
         <div class="shortcut-row" id="shortcutRow">
           <a class="shortcut-pill" href="accounts.html?type=User">Users</a>
-          <a class="shortcut-pill" href="accounts.html?type=User%20Admin">User Admins</a>
-          <a class="shortcut-pill" href="accounts.html?type=Platform%20Manager">Platform Managers</a>
+          <a class="shortcut-pill" href="accounts.html?type=Account%20Manager">Account Managers</a>
+          <a class="shortcut-pill" href="accounts.html?type=IT%20Manager">IT Managers</a>
         </div>
       </div>
 
@@ -91,20 +88,12 @@
 <script src="../js/app.js"></script>
 
 <script>
-  requireRole("user_admin");
+  requireRole("account_manager");
 
   const errorEl = document.getElementById("pageError");
   const statGrid = document.getElementById("statGrid");
   const requestList = document.getElementById("requestList");
   const glanceList = document.getElementById("glanceList");
-
-  // Greet the signed-in admin by name rather than a generic label.
-  const user = Session.user;
-  if (user) {
-    const chip = document.querySelector(".welcome-chip");
-    if (chip) chip.innerHTML =
-      `<span class="avatar">\u{1F464}</span> Welcome, ${escapeHtml(user.first_name)}`;
-  }
 
   function tile(value, label){
     return `<div class="stat-tile">
@@ -130,7 +119,7 @@
         [`${s.logs_today} food log${s.logs_today === 1 ? "" : "s"} recorded`, "Today"],
         [`${s.recommendations_today} recommendation${s.recommendations_today === 1 ? "" : "s"} served`, "Today"],
         [`${s.resolved_requests} request${s.resolved_requests === 1 ? "" : "s"} resolved`, "All time"],
-        [`${s.user_admins} user admin${s.user_admins === 1 ? "" : "s"}, ${s.platform_managers} platform manager${s.platform_managers === 1 ? "" : "s"}`, "Staff"],
+        [`${s.account_managers} account manager${s.account_managers === 1 ? "" : "s"}, ${s.IT_managers} IT manager${s.IT_managers === 1 ? "" : "s"}`, "Staff"],
       ].map(([text, when]) => `<li>
         <span class="t-time">${escapeHtml(when)}</span>
         <span class="t-text">${escapeHtml(text)}</span>

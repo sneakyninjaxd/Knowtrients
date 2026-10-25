@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feedback Details — Knowtrients IT Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-topbar">
+  <button class="brand" id="brandTrigger" aria-label="Open menu">
+    <span class="brand-mark">✦</span> Knowtrients
+  </button>
+  <div class="avatar-chip">
+    <a class="welcome-chip" href="my-account.html" title="My Account">
+      <span class="avatar">👤</span> Welcome, Admin
+    </a>
+    <button class="logout-btn" type="button">Logout</button>
+  </div>
+</header>
+
+<div class="drawer-scrim" id="drawerScrim"></div>
+<nav class="drawer" id="drawer" aria-label="Site navigation">
+  <div class="drawer-section">
+    <a href="dashboard.html"><h2>Home</h2></a>
+  </div>
+  <div class="drawer-section">
+    <a href="analytics.html"><h3>Data Analytics</h3></a>
+    <ul>
+      <li><a href="analytics.html#performance">Performance Metrics</a></li>
+      <li><a href="analytics.html#accuracy">Accuracy Metrics</a></li>
+    </ul>
+  </div>
+  <div class="drawer-section">
+    <a href="feedback.html?filter=All"><h3>Feedback</h3></a>
+    <ul>
+      <li><a href="feedback.html?filter=Unresolved">Feedback Received</a></li>
+      <li><a href="feedback.html?filter=Resolved">Resolved Feedback</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="app-main" id="appMain">
+  <div class="page-head">
+    <div>
+      <a class="btn btn-ghost btn-sm" href="feedback.html?filter=All">\u2039 Back to Feedback</a>
+      <h1 id="feedbackSubject" style="margin-top:12px;">Loading\u2026</h1>
+    </div>
+  </div>
+
+  <div id="pageError" class="form-error" style="display:none;"></div>
+
+  <div id="feedbackContent" style="display:none;">
+    <div class="card" style="margin-bottom:24px;">
+      <div class="kv-grid" id="feedbackMeta"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px;">
+      <h2>Message</h2>
+      <div id="attachments" class="detail-actions" style="margin-top:0;"></div>
+      <div class="message-body" id="feedbackBody"></div>
+      <div id="existingReply"></div>
+    </div>
+
+    <div class="card" id="replyCard">
+      <h2 id="replyHeading">Reply</h2>
+      <textarea class="reply-box" id="replyBody"
+        placeholder="Write your response to the user\u2026"></textarea>
+      <div class="detail-actions">
+        <button class="btn btn-primary" id="sendResolveBtn">Send &amp; Resolve</button>
+        <button class="btn btn-outline" id="sendOnlyBtn">Send Without Resolving</button>
+        <button class="btn btn-ghost" id="toggleStatusBtn"></button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../js/api.js"></script>
+<!-- Mock backend: delete the next line to use the real API -->
+<script src="../js/mock-api.js"></script>
+<script src="../js/chart.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  requireRole("IT_manager");
+
+  const feedbackId = new URLSearchParams(window.location.search).get("id");
+  const $ = (id) => document.getElementById(id);
+  let item = null;
+
+  function showError(message){
+    $("pageError").textContent = message;
+    $("pageError").style.display = "block";
+    $("feedbackSubject").textContent = "Feedback";
+  }
+
+  function kv(label, value){
+    return `<div class="kv-item">
+      <div class="kv-label">${escapeHtml(label)}</div>
+      <div class="kv-value">${escapeHtml(value ?? "\u2014")}</div>
+    </div>`;
+  }
+
+  function render(){
+    $("feedbackSubject").textContent = item.subject;
+    $("feedbackContent").style.display = "block";
+
+    $("feedbackMeta").innerHTML = [
+      kv("Feedback ID", item.display_id),
+      kv("From", item.user_name || "Unknown"),
+      kv("Email", item.user_email),
+      kv("Type", feedbackLabel(item.category)),
+      `<div class="kv-item"><div class="kv-label">Status</div>
+        <div class="kv-value"><span class="status-dot status-${item.status}">
+          ${statusLabel(item.status)}</span></div></div>`,
+      kv("Received", formatDateTime(item.created_at)),
+    ].join("");
+
+    // Attachments are shown as chips; the mock has no files behind them yet.
+    $("attachments").innerHTML = (item.attachments || [])
+      .map(name => `<span class="attachment-chip">\u{1F4CE} ${escapeHtml(name)}</span>`)
+      .join("");
+
+    $("feedbackBody").textContent = item.body;
+
+    const replyEl = $("existingReply");
+    if (item.reply) {
+      replyEl.innerHTML = `<div class="reply-shown">
+        <div class="reply-meta">Replied by ${escapeHtml(item.handled_by_name || "an admin")}
+          \u00b7 ${escapeHtml(formatDateTime(item.replied_at))}</div>
+        <div class="message-body">${escapeHtml(item.reply)}</div>
+      </div>`;
+      $("replyHeading").textContent = "Update Reply";
+      $("replyBody").value = item.reply;
+    } else {
+      replyEl.innerHTML = "";
+    }
+
+    $("toggleStatusBtn").textContent =
+      item.status === "resolved" ? "Reopen Feedback" : "Mark Resolved";
+  }
+
+  async function send(resolve){
+    const body = $("replyBody").value.trim();
+    if(!body){ alert("Write a reply before sending."); return; }
+
+    const buttons = document.querySelectorAll("#replyCard button");
+    buttons.forEach(b => b.disabled = true);
+
+    try {
+      item = await Feedback.reply(item.id, body, resolve);
+      render();
+      showToast(resolve ? "Reply sent and feedback resolved." : "Reply sent.");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      buttons.forEach(b => b.disabled = false);
+    }
+  }
+
+  async function toggleStatus(){
+    const next = item.status === "resolved" ? "unresolved" : "resolved";
+    const buttons = document.querySelectorAll("#replyCard button");
+    buttons.forEach(b => b.disabled = true);
+
+    try {
+      item = await Feedback.setStatus(item.id, next);
+      render();
+      showToast(next === "resolved" ? "Feedback resolved." : "Feedback reopened.");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      buttons.forEach(b => b.disabled = false);
+    }
+  }
+
+  async function load(){
+    if(!feedbackId){ showError("No feedback specified."); return; }
+    try {
+      item = await Feedback.get(feedbackId);
+      render();
+      $("sendResolveBtn").addEventListener("click", () => send(true));
+      $("sendOnlyBtn").addEventListener("click", () => send(false));
+      $("toggleStatusBtn").addEventListener("click", toggleStatus);
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

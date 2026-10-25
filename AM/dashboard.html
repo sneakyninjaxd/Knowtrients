@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Knowtrients Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-topbar">
+  <button class="brand" id="brandTrigger" aria-label="Open menu">
+    <span class="brand-mark">✦</span> Knowtrients
+  </button>
+  <div class="avatar-chip">
+    <a class="welcome-chip" href="my-account.html" title="My Account">
+      <span class="avatar">👤 </span> Welcome, Admin
+    </a>
+    <button class="logout-btn" type="button">Logout</button>
+  </div>
+</header>
+
+<div class="drawer-scrim" id="drawerScrim"></div>
+<nav class="drawer" id="drawer" aria-label="Site navigation">
+  <div class="drawer-section">
+    <a href="dashboard.html?type=All"><h2>Home</h2></a>
+  </div>
+  <div class="drawer-section">
+    <a href="accounts.html?type=All"><h3>Accounts</h3></a>
+    <ul>
+      <li><a href="accounts.html?type=Account%20Manager">Account Managers</a></li>
+      <li><a href="accounts.html?type=User">Users</a></li>
+      <li><a href="accounts.html?type=IT%20Manager">IT Managers</a></li>
+    </ul>
+  </div>
+  <div class="drawer-section">
+    <a href="requests.html?filter=All"><h3>Requests</h3></a>
+    <ul>
+      <li><a href="requests.html?filter=Unresolved">Pending Requests</a></li>
+      <li><a href="requests.html?filter=Resolved">Resolved Requests</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="app-main" id="appMain">
+  <div class="page-head">
+    <div>
+      <h1>Dashboard</h1>
+    </div>
+  </div>
+
+  <div id="pageError" class="form-error" style="display:none;"></div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
+  <div class="dash-grid">
+    <div>
+      <div class="card" style="margin-bottom:24px;">
+        <h2>Accounts</h2>
+        <div class="shortcut-row" id="shortcutRow">
+          <a class="shortcut-pill" href="accounts.html?type=User">Users</a>
+          <a class="shortcut-pill" href="accounts.html?type=Account%20Manager">Account Managers</a>
+          <a class="shortcut-pill" href="accounts.html?type=IT%20Manager">IT Managers</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex-between" style="margin-bottom:14px;">
+          <h2 class="mt-0">Pending Support Requests</h2>
+          <a class="btn btn-ghost btn-sm" href="requests.html?filter=All">View all</a>
+        </div>
+        <div id="requestList"></div>
+      </div>
+    </div>
+
+    <div class="updates-card">
+      <h2>At a Glance</h2>
+      <ul class="timeline" id="glanceList"></ul>
+    </div>
+  </div>
+</main>
+
+<script src="../js/api.js"></script>
+<!-- Mock backend: delete the next line to use the real API -->
+<script src="../js/mock-api.js"></script>
+<script src="../js/app.js"></script>
+
+<script>
+  requireRole("account_manager");
+
+  const errorEl = document.getElementById("pageError");
+  const statGrid = document.getElementById("statGrid");
+  const requestList = document.getElementById("requestList");
+  const glanceList = document.getElementById("glanceList");
+
+  function tile(value, label){
+    return `<div class="stat-tile">
+      <div class="stat-value">${escapeHtml(value)}</div>
+      <div class="stat-label">${escapeHtml(label)}</div>
+    </div>`;
+  }
+
+  async function loadStats(){
+    statGrid.innerHTML = `<div class="empty-hint">Loading…</div>`;
+    try {
+      const s = await Dashboard.summary();
+
+      statGrid.innerHTML = [
+        tile(s.total_users, "Total users"),
+        tile(s.active_users, "Active users"),
+        tile(s.suspended_users, "Suspended"),
+        tile(s.unresolved_requests, "Pending requests"),
+      ].join("");
+
+      glanceList.innerHTML = [
+        [`${s.new_users_7d} new account${s.new_users_7d === 1 ? "" : "s"}`, "Last 7 days"],
+        [`${s.logs_today} food log${s.logs_today === 1 ? "" : "s"} recorded`, "Today"],
+        [`${s.recommendations_today} recommendation${s.recommendations_today === 1 ? "" : "s"} served`, "Today"],
+        [`${s.resolved_requests} request${s.resolved_requests === 1 ? "" : "s"} resolved`, "All time"],
+        [`${s.account_managers} account manager${s.account_managers === 1 ? "" : "s"}, ${s.IT_managers} IT manager${s.IT_managers === 1 ? "" : "s"}`, "Staff"],
+      ].map(([text, when]) => `<li>
+        <span class="t-time">${escapeHtml(when)}</span>
+        <span class="t-text">${escapeHtml(text)}</span>
+      </li>`).join("");
+    } catch (err) {
+      statGrid.innerHTML = "";
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  }
+
+  async function loadRequests(){
+    renderMessage(requestList, "Loading requests…");
+    try {
+      const rows = await Requests.list({ status: "unresolved" });
+
+      if (!rows.length) {
+        renderMessage(requestList, "No pending requests. All caught up.");
+        return;
+      }
+
+      requestList.innerHTML = "";
+      rows.slice(0, 4).forEach(r => {
+        const el = document.createElement("div");
+        el.className = "request-card";
+        el.style.cursor = "pointer";
+        el.addEventListener("click", () =>
+          window.location.href = "request-detail.html?id=" + r.id);
+        el.innerHTML = `
+          <div class="req-top">
+            <span class="req-avatar">\u{1F464}</span>
+            <span class="req-name">${escapeHtml(r.user_name || "Unknown")}</span>
+            <span class="req-time">${escapeHtml(formatDateTime(r.created_at))}</span>
+          </div>
+          <div class="req-subject">${escapeHtml(r.subject)}</div>
+          <div class="req-preview">${escapeHtml(r.body.slice(0, 90))}${r.body.length > 90 ? "…" : ""}</div>
+          <div class="req-actions">
+            <span class="attachment-chip">${escapeHtml(categoryLabel(r.category))}</span>
+            <span class="req-arrow">\u203A</span>
+          </div>
+        `;
+        requestList.appendChild(el);
+      });
+    } catch (err) {
+      renderMessage(requestList, err.message, true);
+    }
+  }
+
+  loadStats();
+  loadRequests();
+</script>
+</body>
+</html>

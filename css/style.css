@@ -679,3 +679,22 @@ a.welcome-chip:hover{ background:var(--mint-strong); }
 /* ---- View Account: user type and delete ---- */
 .role-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .danger-card{ border-color:rgba(226,99,92,.35); }
+/* ---- Auth pages: footer links under the form ---- */
+.auth-alt{
+  margin-top:22px; padding-top:18px;
+  border-top:1px solid var(--panel-line);
+  text-align:center; font-size:.85rem; color:var(--ink-dim);
+}
+.auth-alt p{ margin:0 0 6px; }
+.auth-alt p:last-child{ margin-bottom:0; }
+.auth-alt a{ color:var(--mint); font-weight:600; }
+/* ---- Charts (IT Manager pages) ---- */
+.chart-card{ padding:22px; }
+.chart-svg{ width:100%; height:300px; display:block; }
+.chart-grid{ stroke:var(--panel-line); stroke-width:1; }
+.chart-axis{ fill:var(--ink-faint); font-size:11px; }
+.chart-legend{ display:flex; gap:18px; flex-wrap:wrap; justify-content:center; margin-top:8px; font-size:.8rem; color:var(--ink-dim); }
+.chart-key{ display:inline-flex; align-items:center; gap:6px; }
+.chart-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+.metric-row{ display:flex; gap:18px; flex-wrap:wrap; font-size:.88rem; margin-bottom:14px; }
+.metric-row b{ font-weight:600; }

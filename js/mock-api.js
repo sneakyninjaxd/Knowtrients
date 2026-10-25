@@ -7,7 +7,7 @@
    against the same URLs and response shapes the real API uses.
 
    ENABLE:  add this line directly AFTER api.js on a page
-              <script src="../js/mock-api.js"></script>   (UA/ pages)
+              <script src="../js/mock-api.js"></script>   (AM/ and IM/ pages)
               <script src="js/mock-api.js"></script>      (login.html)
    DISABLE: delete that line. Nothing else needs to change.
 
@@ -15,27 +15,25 @@
    localStorage, so they survive refreshes and page changes.
    Click "reset" on the MOCK DATA badge to restore the seed data.
 
-   Login: any email + any password signs you in as a User Admin
+   Login: any email + any password signs you in as a Account Manager
    (Micheal Afton). Seeded emails log in as that account instead, e.g.
-     priyanair@gmail.com   -> Platform Manager (no account management)
+     priyanair@gmail.com   -> IT Manager (no account management)
      danieltan@gmail.com   -> ordinary app user (tests rejection)
 
    Permissions: accounts and support requests (everything under
-   /admin) belong to User Admins. Platform Managers only reach /me
-   (their own details); their own pages live in PM/.
+   /admin) belong to Account Managers. IT Managers only reach /me
+   (their own details); their own pages live in IM/.
    Once a password is set (Create Account or My Account), that
    account must log in with it.
    ============================================================ */
 
 (function () {
-  const STORE_KEY = "knowtrients_mock_db";
+  // Bumped when the seed shape changes (here: the role rename), so an old
+  // copy in the browser is replaced instead of breaking every page.
+  const STORE_KEY = "knowtrients_mock_db_v3";
   const LATENCY_MS = 300; // lets you see loading states
 
-  const ROLE_LABELS = {
-    user: "User",
-    user_admin: "User Admin",
-    platform_manager: "Platform Manager",
-  };
+  // Labels come from api.js so the mock and the pages always agree.
   const LABEL_TO_ROLE = Object.fromEntries(
     Object.entries(ROLE_LABELS).map(([slug, label]) => [label, slug])
   );
@@ -67,12 +65,12 @@
 
   function seed() {
     const accounts = [
-      staff(1, "U001", "Micheal", "Afton", "michealA44@gmail.com", "user_admin", true, 140),
-      staff(2, "U002", "Thomas", "Addison", "eddison67@gmail.com", "user_admin", false, 130),
-      staff(3, "U003", "Samuel", "Liu", "samliu8890@gmail.com", "user_admin", true, 95),
-      staff(4, "U004", "Lebaski", "Addams", "Addamsl1@gmail.com", "user_admin", true, 60),
-      staff(5, "U010", "Priya", "Nair", "priyanair@gmail.com", "platform_manager", true, 180),
-      staff(6, "U011", "Jonas", "Wren", "jonaswren@gmail.com", "platform_manager", true, 175),
+      staff(1, "U001", "Micheal", "Afton", "michealA44@gmail.com", "account_manager", true, 140),
+      staff(2, "U002", "Thomas", "Addison", "eddison67@gmail.com", "account_manager", false, 130),
+      staff(3, "U003", "Samuel", "Liu", "samliu8890@gmail.com", "account_manager", true, 95),
+      staff(4, "U004", "Lebaski", "Addams", "Addamsl1@gmail.com", "account_manager", true, 60),
+      staff(5, "U010", "Priya", "Nair", "priyanair@gmail.com", "IT_manager", true, 180),
+      staff(6, "U011", "Jonas", "Wren", "jonaswren@gmail.com", "IT_manager", true, 175),
 
       appUser(7, "U020", "Clare", "Koh", "koh234@gmail.com", false, 45, {
         onboarding_complete: true, age: 29, gender: "Female", height_cm: 162, weight_kg: 58,
@@ -151,7 +149,64 @@
         status: "resolved", created_at: at(23, 16, 20) },
     ];
 
-    return { accounts, requests, stats: { logs_today: 14, recommendations_today: 6 } };
+    // ---- IT Manager data: AI accuracy over time, usage counts, feedback ----
+    const days = 14;
+    const labels = [];
+    const dietary = [], activity = [], sleep = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      labels.push(`${d.getDate()}/${d.getMonth() + 1}`);
+      // Wobbles around a steady average so the lines look like real readings.
+      dietary.push(Math.round(75 + Math.sin(i / 1.7) * 7));
+      activity.push(Math.round(80 + Math.cos(i / 2.1) * 6));
+      sleep.push(Math.round(61 + Math.sin(i / 1.2 + 1) * 9));
+    }
+
+    const analytics = {
+      labels, dietary, activity, sleep,
+      insights_generated: 705,
+      likes: 560,
+      dislikes: 105,
+      unrated: 40,
+      subscribers: 10,
+      avg_response_ms: 2140,
+      errors_24h: 3,
+      uptime_pct: 99.4,
+    };
+
+    const feedback = [
+      { id: 201, display_id: "F201", user_id: 7, category: "ai_accuracy",
+        subject: "Wrong Data Used",
+        body: "The AI is using my old data to give me recommendations.",
+        attachments: ["Image.jpg", "Image2.jpg"],
+        status: "unresolved", created_at: at(0, 19, 44) },
+      { id: 202, display_id: "F202", user_id: 8, category: "performance",
+        subject: "Recommendations take too long",
+        body: "My AI takes too long to load the recommendation — about 30 seconds every time.",
+        attachments: [], status: "unresolved", created_at: at(1, 8, 38) },
+      { id: 203, display_id: "F203", user_id: 9, category: "ai_accuracy",
+        subject: "Sleep — Incorrect Data",
+        body: "The data used was from ages ago. Which is not relevant to me now.",
+        attachments: [], status: "unresolved", created_at: at(3, 10, 15) },
+      { id: 204, display_id: "F204", user_id: 10, category: "explanation",
+        subject: "Dietary — Others",
+        body: "Recommendations are all similar, with similar explanations each day.",
+        attachments: ["Screenshot.png"], status: "resolved", created_at: at(9, 16, 5),
+        reply: "We have retrained the dietary model with more recent logs.",
+        replied_at: at(8, 9, 0), handled_by_name: "Priya Nair" },
+      { id: 205, display_id: "F205", user_id: 7, category: "crash",
+        subject: "App closes when scanning",
+        body: "The app closes itself whenever I scan a packaged food label.",
+        attachments: [], status: "resolved", created_at: at(15, 11, 30),
+        reply: "Fixed in the latest build — please update the app.",
+        replied_at: at(14, 14, 12), handled_by_name: "Jonas Wren" },
+    ];
+
+    return {
+      accounts, requests, feedback, analytics,
+      stats: { logs_today: 14, recommendations_today: 6 },
+    };
   }
 
   /* ---- Storage ------------------------------------------ */
@@ -212,6 +267,28 @@
     };
   }
 
+    /** Feedback is shaped like a support request, plus its attachments. */
+  function feedbackShape(f, db) {
+    const u = db.accounts.find((a) => a.id === f.user_id);
+    return {
+      id: f.id,
+      display_id: f.display_id,
+      user_id: f.user_id,
+      user_display_id: u ? u.display_id : null,
+      user_name: u ? fullName(u) : null,
+      user_email: u ? u.email : null,
+      category: f.category,
+      subject: f.subject,
+      body: f.body,
+      attachments: f.attachments || [],
+      status: f.status,
+      created_at: f.created_at,
+      reply: f.reply ?? null,
+      replied_at: f.replied_at ?? null,
+      handled_by_name: f.handled_by_name ?? null,
+    };
+  }
+
   function requestShape(r, db) {
     const u = db.accounts.find((a) => a.id === r.user_id);
     return {
@@ -245,19 +322,26 @@
   }
 
   // The logged-in admin. With requireAuth() commented out there is no session,
-  // so fall back to a User Admin rather than failing every request.
+  // so fall back to a Account Manager rather than failing every request.
   function currentUser(db) {
     const sessionUser = Session.user;
     if (sessionUser) {
       return db.accounts.find((a) => a.id === sessionUser.id) || sessionUser;
     }
-    return db.accounts.find((a) => a.role === "user_admin" && a.is_active);
+    return db.accounts.find((a) => a.role === "account_manager" && a.is_active);
   }
 
-  // Accounts and support requests are User Admin responsibilities only.
+  // App performance, AI accuracy and user feedback are IT Manager work.
+  function requireITManager(me) {
+    if (!me || me.role !== "IT_manager") {
+      fail(403, "Only IT Managers can access analytics and feedback.");
+    }
+  }
+
+  // Accounts and support requests are Account Manager responsibilities only.
   function requireUserAdmin(me) {
-    if (!me || me.role !== "user_admin") {
-      fail(403, "Only User Admins can access accounts and support requests.");
+    if (!me || me.role !== "account_manager") {
+      fail(403, "Only Account Managers can access accounts and support requests.");
     }
   }
 
@@ -277,8 +361,11 @@
     const me = currentUser(db);
     let m;
 
-    // Accounts, support requests and the UA dashboard are User Admin work.
-    // Platform Managers are refused everything under /admin.
+    // Analytics and feedback are IT Manager work.
+    if (route.startsWith("/im/")) requireITManager(me);
+
+    // Accounts, support requests and the UA dashboard are Account Manager work.
+    // IT Managers are refused everything under /admin.
     if (route.startsWith("/admin/")) requireUserAdmin(me);
 
     // POST /login
@@ -292,12 +379,132 @@
       if (found && found.password && found.password !== body.password) {
         fail(401, "Incorrect email or password.");
       }
-      const account = found || db.accounts.find((a) => a.role === "user_admin" && a.is_active);
+      const account = found || db.accounts.find((a) => a.role === "account_manager" && a.is_active);
       if (!account.is_active) fail(403, "This account has been suspended.");
       return {
         access_token: "mock-token-" + account.id,
         token_type: "bearer",
         user: { ...accountSummary(account) },
+      };
+    }
+
+    // GET /im/analytics  (performance and AI accuracy for the IT Manager)
+    if (method === "GET" && route === "/im/analytics") {
+      const a = db.analytics;
+      const avg = (xs) => Math.round((xs.reduce((t, n) => t + n, 0) / xs.length) * 10) / 10;
+      const users = db.accounts.filter((x) => x.role === "user");
+      return {
+        labels: a.labels,
+        accuracy: {
+          dietary: a.dietary,
+          activity: a.activity,
+          sleep: a.sleep,
+        },
+        accuracy_today: {
+          dietary: a.dietary[a.dietary.length - 1],
+          activity: a.activity[a.activity.length - 1],
+          sleep: a.sleep[a.sleep.length - 1],
+        },
+        accuracy_average: {
+          dietary: avg(a.dietary),
+          activity: avg(a.activity),
+          sleep: avg(a.sleep),
+        },
+        insights_generated: a.insights_generated,
+        likes: a.likes,
+        dislikes: a.dislikes,
+        unrated: a.unrated,
+        subscribers: a.subscribers,
+        total_users: users.length,
+        avg_response_ms: a.avg_response_ms,
+        errors_24h: a.errors_24h,
+        uptime_pct: a.uptime_pct,
+        open_feedback: db.feedback.filter((f) => f.status === "unresolved").length,
+        resolved_feedback: db.feedback.filter((f) => f.status === "resolved").length,
+      };
+    }
+
+    // GET /im/feedback?status=&q=
+    if (method === "GET" && route === "/im/feedback") {
+      const status = query.get("status");
+      const q = query.get("q");
+      return db.feedback
+        .filter((f) => !status || f.status === status)
+        .map((f) => feedbackShape(f, db))
+        .filter((f) => matches(q, f.display_id, f.subject, f.body, f.user_name, f.user_email, f.user_display_id))
+        .sort(newestFirst);
+    }
+
+    // /im/feedback/:id and sub-routes
+    if ((m = route.match(/^\/im\/feedback\/(\d+)(\/reply|\/status)?$/))) {
+      const id = Number(m[1]);
+      const sub = m[2];
+      const item = db.feedback.find((f) => f.id === id);
+      if (!item) fail(404, "Feedback not found.");
+
+      if (method === "GET" && !sub) return feedbackShape(item, db);
+
+      if (method === "POST" && sub === "/reply") {
+        const text = (body.body || "").trim();
+        if (!text) fail(422, "Reply cannot be empty.");
+        item.reply = text;
+        item.replied_at = new Date().toISOString();
+        item.handled_by_name = fullName(me);
+        if (body.resolve) item.status = "resolved";
+        save(db);
+        return feedbackShape(item, db);
+      }
+
+      if (method === "PATCH" && sub === "/status") {
+        const next = query.get("status");
+        if (next !== "resolved" && next !== "unresolved") fail(422, "Invalid status.");
+        item.status = next;
+        save(db);
+        return feedbackShape(item, db);
+      }
+    }
+
+    // POST /register  (public app-user sign-up from register.html)
+    if (method === "POST" && route === "/register") {
+      const first = (body.first_name || "").trim();
+      const last = (body.last_name || "").trim();
+      const email = (body.email || "").trim();
+
+      if (!first || !last) fail(422, "First and last name are required.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(422, "Enter a valid email address.");
+      if (!body.password || body.password.length < 8) {
+        fail(422, "Password must be at least 8 characters.");
+      }
+      if (db.accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
+        fail(409, "An account with this email already exists.");
+      }
+
+      const nextId = Math.max(0, ...db.accounts.map((a) => a.id)) + 1;
+      const nextDisplay = Math.max(
+        0, ...db.accounts.map((a) => Number(a.display_id.slice(1)) || 0)
+      ) + 1;
+
+      // Matches the users table: a new sign-up is an ordinary active app user
+      // with an empty profile until they finish onboarding in the app.
+      const account = appUser(
+        nextId, "U" + String(nextDisplay).padStart(3, "0"),
+        first, last, email, true, 0,
+        {
+          onboarding_complete: false, age: null, gender: null, height_cm: null,
+          weight_kg: null, activity_level: null, goals: [], dietary_preferences: [],
+          food_log_count: 0, recommendation_count: 0, last_active: null,
+        }
+      );
+      account.created_at = new Date().toISOString();
+      account.password = body.password; // mock only; the real table stores a hash
+      db.accounts.push(account);
+      save(db);
+
+      // Same shape as /login, so the page can sign them straight in.
+      return {
+        access_token: "mock-token-" + account.id,
+        token_type: "bearer",
+        user: accountSummary(account),
       };
     }
 
@@ -350,8 +557,8 @@
         new_users_7d: users.filter((a) => new Date(a.created_at) >= weekAgo).length,
         unresolved_requests: db.requests.filter((r) => r.status === "unresolved").length,
         resolved_requests: db.requests.filter((r) => r.status === "resolved").length,
-        user_admins: db.accounts.filter((a) => a.role === "user_admin").length,
-        platform_managers: db.accounts.filter((a) => a.role === "platform_manager").length,
+        account_managers: db.accounts.filter((a) => a.role === "account_manager").length,
+        IT_managers: db.accounts.filter((a) => a.role === "IT_manager").length,
         logs_today: db.stats.logs_today,
         recommendations_today: db.stats.recommendations_today,
       };
@@ -368,8 +575,8 @@
       if (!body.password || body.password.length < 8) {
         fail(422, "Password must be at least 8 characters.");
       }
-      if (body.role !== "user_admin" && body.role !== "platform_manager") {
-        fail(422, "Role must be User Admin or Platform Manager.");
+      if (body.role !== "account_manager" && body.role !== "IT_manager") {
+        fail(422, "Role must be Account Manager or IT Manager.");
       }
       if (db.accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
         fail(409, "An account with this email already exists.");

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Requests — Knowtrients Admin</title>
+<title>Feedback — Knowtrients IT Manager</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
@@ -16,52 +16,50 @@
   </button>
   <div class="avatar-chip">
     <a class="welcome-chip" href="my-account.html" title="My Account">
-      <span class="avatar">👤 </span> Welcome, Admin
+      <span class="avatar">👤</span> Welcome, Admin
     </a>
     <button class="logout-btn" type="button">Logout</button>
   </div>
-  
 </header>
 
 <div class="drawer-scrim" id="drawerScrim"></div>
 <nav class="drawer" id="drawer" aria-label="Site navigation">
   <div class="drawer-section">
-    <a href="dashboard.html?type=All"><h2>Home</h2></a>
+    <a href="dashboard.html"><h2>Home</h2></a>
   </div>
   <div class="drawer-section">
-    <a href="accounts.html?type=All"><h3>Accounts</h3></a>
+    <a href="analytics.html"><h3>Data Analytics</h3></a>
     <ul>
-      <li><a href="accounts.html?type=User%20Admin">User Admins</a></li>
-      <li><a href="accounts.html?type=User">Users</a></li>
-      <li><a href="accounts.html?type=Platform%20Manager">Platform Managers</a></li>
+      <li><a href="analytics.html#performance">Performance Metrics</a></li>
+      <li><a href="analytics.html#accuracy">Accuracy Metrics</a></li>
     </ul>
   </div>
   <div class="drawer-section">
-    <a href="requests.html?filter=All"><h3>Requests</h3></a>
+    <a href="feedback.html?filter=All"><h3>Feedback</h3></a>
     <ul>
-      <li><a href="requests.html?filter=Unresolved">Pending Requests</a></li>
-      <li><a href="requests.html?filter=Resolved">Resolved Requests</a></li>
+      <li><a href="feedback.html?filter=Unresolved">Feedback Received</a></li>
+      <li><a href="feedback.html?filter=Resolved">Resolved Feedback</a></li>
     </ul>
   </div>
 </nav>
 
 <main class="app-main" id="appMain">
   <div class="page-head">
-    <h1>Requests</h1>
+    <h1>Feedback</h1>
   </div>
 
   <div class="toolbar">
     <div class="toolbar-left">
-      <label for="typeFilter">User Type:</label>
-      <select class="input select-compact" id="typeFilter">
-        <option value="All" default>All</option>
+      <label for="statusFilter">Filter:</label>
+      <select class="input select-compact" id="statusFilter">
+        <option value="All">All Feedback</option>
         <option value="Unresolved">Unresolved</option>
         <option value="Resolved">Resolved</option>
       </select>
     </div>
     <div class="search-box">
       <span class="icon">🔍</span>
-      <input class="input" id="searchInput" placeholder="Search user…">
+      <input class="input" id="searchInput" placeholder="Search">
     </div>
   </div>
 
@@ -69,60 +67,60 @@
     <table>
       <thead>
         <tr>
-          <th>Time</th><th>Request ID</th><th>User ID</th><th>Name</th><th>Email</th><th>Status</th>
+          <th>Date</th><th>Feedback ID</th><th>User ID</th><th>Name</th><th>Subject</th><th>Type</th><th>Status</th>
         </tr>
       </thead>
-      <tbody id="requestsBody"></tbody>
+      <tbody id="feedbackBody"></tbody>
     </table>
   </div>
-  <div id="emptyState" class="empty-hint" style="display:none;">No requests match your search.</div>
+  <div id="emptyState" class="empty-hint" style="display:none;">No feedback matches your search.</div>
 </main>
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
 <script src="../js/mock-api.js"></script>
+<script src="../js/chart.js"></script>
 <script src="../js/app.js"></script>
-
 <script>
-  requireRole("user_admin");
+  requireRole("IT_manager");
 
   const params = new URLSearchParams(window.location.search);
-  const initialFilter = params.get("filter") || "All";
-  const typeFilter = document.getElementById("typeFilter");
+  const statusFilter = document.getElementById("statusFilter");
   const searchInput = document.getElementById("searchInput");
-  const body = document.getElementById("requestsBody");
+  const body = document.getElementById("feedbackBody");
   const emptyState = document.getElementById("emptyState");
 
-  typeFilter.value = initialFilter;
+  statusFilter.value = params.get("filter") || "All";
 
   function showRow(text, isError){
-    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;${
+    body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;${
       isError ? "color:var(--danger);" : "color:var(--muted);"
     }">${escapeHtml(text)}</td></tr>`;
     emptyState.style.display = "none";
   }
 
   async function render(){
-    showRow("Loading requests…", false);
+    showRow("Loading feedback\u2026", false);
     try {
-      const rows = await Requests.list({
-        status: typeFilter.value,
+      const rows = await Feedback.list({
+        status: statusFilter.value,
         q: searchInput.value.trim(),
       });
 
       body.innerHTML = "";
-      rows.forEach(r => {
+      rows.forEach(f => {
         const tr = document.createElement("tr");
         tr.style.cursor = "pointer";
         tr.addEventListener("click", () =>
-          window.location.href = "request-detail.html?id=" + r.id);
+          window.location.href = "feedback-detail.html?id=" + f.id);
         tr.innerHTML = `
-          <td>${escapeHtml(formatDateTime(r.created_at))}</td>
-          <td class="mono-id">${escapeHtml(r.display_id || r.id)}</td>
-          <td class="mono-id">${escapeHtml(r.user_display_id || r.user_id)}</td>
-          <td>${escapeHtml(r.user_name || "—")}</td>
-          <td class="email-cell">${escapeHtml(r.user_email || "—")}</td>
-          <td><span class="status-dot status-${r.status}">${statusLabel(r.status)}</span></td>
+          <td>${escapeHtml(formatDateTime(f.created_at))}</td>
+          <td class="mono-id">${escapeHtml(f.display_id)}</td>
+          <td class="mono-id">${escapeHtml(f.user_display_id || f.user_id)}</td>
+          <td>${escapeHtml(f.user_name || "\u2014")}</td>
+          <td>${escapeHtml(f.subject)}</td>
+          <td>${escapeHtml(feedbackLabel(f.category))}</td>
+          <td><span class="status-dot status-${f.status}">${statusLabel(f.status)}</span></td>
         `;
         body.appendChild(tr);
       });
@@ -133,15 +131,16 @@
     }
   }
 
+  // Debounced so typing doesn't fire a request per keystroke.
   let searchTimer;
   searchInput.addEventListener("input", () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(render, 300);
   });
 
-  typeFilter.addEventListener("change", () => {
+  statusFilter.addEventListener("change", () => {
     const url = new URL(window.location);
-    url.searchParams.set("filter", typeFilter.value);
+    url.searchParams.set("filter", statusFilter.value);
     window.history.replaceState({}, "", url);
     render();
   });

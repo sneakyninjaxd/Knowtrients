@@ -13,32 +13,40 @@
 <header class="topbar">
   <a class="brand" href="index.html"><span class="brand-mark">✦</span> Knowtrients</a>
   <div class="topbar-right">
-    <a class="topbar-link" href="index.html#download">Download</a>
+    <a class="topbar-link" href="register.html">Register</a>
     <a class="pill-login" href="index.html">Back to Home</a>
   </div>
 </header>
 
 <main class="auth-wrap">
   <form class="auth-card" id="loginForm" novalidate>
-    <h1>Welcome!</h1>
-    <p class="auth-sub">This login page is only for authorized users.</p>
+    <h1>Welcome back</h1>
+    <p class="auth-sub">Sign in to download the Knowtrients app.</p>
 
     <div id="loginError" class="form-error" style="display:none;"></div>
 
     <div class="field" id="loginEmailField">
       <label for="loginEmail">Email</label>
-      <input class="input" type="email" id="loginEmail" placeholder="example123@gmail.com" required>
+      <input class="input" type="email" id="loginEmail" placeholder="example123@gmail.com"
+             autocomplete="email" required>
       <div class="field-hint">Enter a valid email address.</div>
     </div>
 
     <div class="field" id="loginPasswordField">
       <label for="loginPassword">Password</label>
-      <input class="input" type="password" id="loginPassword" placeholder="••••••••••" required>
+      <input class="input" type="password" id="loginPassword" placeholder="••••••••••"
+             autocomplete="current-password" required>
       <div class="field-hint">Enter your password.</div>
     </div>
 
     <button type="submit" class="btn btn-primary btn-block">Login</button>
 
+    <div class="auth-alt">
+      <p>New to Knowtrients? <a href="register.html">Register here</a></p>
+      <!-- Staff door. Keep it quiet but findable; the backend decides who
+           actually gets in, so this link gives nothing away. -->
+      <p>Admin? <a href="UAlogin.html">Sign in here</a></p>
+    </div>
   </form>
 </main>
 
@@ -47,34 +55,38 @@
 <script src="js/mock-api.js"></script>
 <script src="js/app.js"></script>
 <script>
+  // This door is for app users. Admins are turned away with a pointer to
+  // UAlogin.html — change this list if that ever needs to open up.
+  const ALLOWED_ROLES = ["user"];
+
   const form = document.getElementById("loginForm");
   const submitBtn = form.querySelector("button[type=submit]");
   const errorBox = document.getElementById("loginError");
+  const $ = (id) => document.getElementById(id);
 
-  // Already signed in — skip the form.
-  if (Session.isLoggedIn && homeFor(Session.user?.role)) {
-    window.location.href = homeFor(Session.user.role);
-  }
+  // No "already signed in" shortcut: opening a login or register page always
+  // shows the form, so nobody is carried into an account they didn't just
+  // sign in to.
+
+  form.querySelectorAll(".input").forEach((input) => {
+    input.addEventListener("input", () => markFieldError(input.closest(".field"), false));
+  });
 
   form.addEventListener("submit", async function(e){
     e.preventDefault();
     errorBox.style.display = "none";
 
-    const email = document.getElementById("loginEmail");
-    const password = document.getElementById("loginPassword");
-    let valid = true;
-
-    markFieldError(document.getElementById("loginEmailField"), !email.value);
-    if(!email.value) valid = false;
-    markFieldError(document.getElementById("loginPasswordField"), !password.value);
-    if(!password.value) valid = false;
-    if(!valid) return;
+    const email = $("loginEmail").value.trim();
+    const password = $("loginPassword").value;
+    markFieldError($("loginEmailField"), !email);
+    markFieldError($("loginPasswordField"), !password);
+    if (!email || !password) return;
 
     submitBtn.disabled = true;
     submitBtn.textContent = "Logging in…";
 
     try {
-      const user = await Auth.login(email.value.trim(), password.value);
+      const user = await Auth.loginAs(ALLOWED_ROLES, email, password);
       window.location.href = homeFor(user.role);
     } catch (err) {
       errorBox.textContent = err.message;
@@ -84,6 +96,5 @@
     }
   });
 </script>
-
 </body>
 </html>
