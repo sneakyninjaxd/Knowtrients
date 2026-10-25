@@ -30,9 +30,9 @@
   <div class="drawer-section">
     <a href="accounts.html?type=All"><h3>Accounts</h3></a>
     <ul>
-      <li><a href="accounts.html?type=Account%20Manager">Account Managers</a></li>
+      <li><a href="accounts.html?type=Account%20Administrator">Account Administrators</a></li>
       <li><a href="accounts.html?type=User">Users</a></li>
-      <li><a href="accounts.html?type=IT%20Manager">IT Managers</a></li>
+      <li><a href="accounts.html?type=Platform%20Administrator">Platform Administrators</a></li>
     </ul>
   </div>
   <div class="drawer-section">
@@ -61,8 +61,8 @@
         <h2>Accounts</h2>
         <div class="shortcut-row" id="shortcutRow">
           <a class="shortcut-pill" href="accounts.html?type=User">Users</a>
-          <a class="shortcut-pill" href="accounts.html?type=Account%20Manager">Account Managers</a>
-          <a class="shortcut-pill" href="accounts.html?type=IT%20Manager">IT Managers</a>
+          <a class="shortcut-pill" href="accounts.html?type=Account%20Administrator">Account Administrators</a>
+          <a class="shortcut-pill" href="accounts.html?type=Platform%20Administrator">Platform Administrators</a>
         </div>
       </div>
 
@@ -84,11 +84,11 @@
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
-<!-- <script src="../js/mock-api.js"></script> -->
+<script src="../js/mock-api.js"></script>
 <script src="../js/app.js"></script>
 
 <script>
-  requireRole("account_manager");
+  requireRole("account_administrator");
 
   const errorEl = document.getElementById("pageError");
   const statGrid = document.getElementById("statGrid");
@@ -119,7 +119,7 @@
         [`${s.logs_today} food log${s.logs_today === 1 ? "" : "s"} recorded`, "Today"],
         [`${s.recommendations_today} recommendation${s.recommendations_today === 1 ? "" : "s"} served`, "Today"],
         [`${s.resolved_requests} request${s.resolved_requests === 1 ? "" : "s"} resolved`, "All time"],
-        [`${s.account_managers} account manager${s.account_managers === 1 ? "" : "s"}, ${s.IT_managers} IT manager${s.IT_managers === 1 ? "" : "s"}`, "Staff"],
+        [`${s.account_administrators} account administrator${s.account_administrators === 1 ? "" : "s"}, ${s.platform_administrators} platform administrator${s.platform_administrators === 1 ? "" : "s"}`, "Staff"],
       ].map(([text, when]) => `<li>
         <span class="t-time">${escapeHtml(when)}</span>
         <span class="t-text">${escapeHtml(text)}</span>

@@ -27,15 +27,19 @@ const USER_KEY = "knowtrients_admin_user";
 /* ---- Session -------------------------------------------- */
 
 /**
- * The roles were renamed: user_admin -> account_manager and
- * platform_manager -> IT_manager. Anyone already signed in has the old name
+ * The roles were renamed: user_admin -> account_administrator and
+ * platform_manager -> platform_administrator. Anyone already signed in has the old name
  * saved in their browser, and the real API may still send it, so translate
  * it rather than treating the account as unknown (which looked like the
  * login page flickering).
  */
 const LEGACY_ROLES = {
-  user_admin: "account_manager",
-  platform_manager: "IT_manager",
+  // Earlier names for the same two roles, kept so a saved session or an API
+  // that hasn't caught up yet still resolves to the current role.
+  user_admin: "account_administrator",
+  account_manager: "account_administrator",
+  platform_manager: "platform_administrator",
+  IT_manager: "platform_administrator",
 };
 
 function normalizeRole(role) {
@@ -94,26 +98,26 @@ function requireAuth(loginPath = "../login.html") {
 }
 
 /**
- * Role slugs and what people call them. The slugs below ("account_manager",
- * "IT_manager") are what the database and the API use, so they stay as
+ * Role slugs and what people call them. The slugs below ("account_administrator",
+ * "platform_administrator") are what the database and the API use, so they stay as
  * they are; only the labels changed when the roles were renamed. Change a
  * label here and it changes everywhere on the site.
  *
- *   account_manager       -> Account Manager  (accounts, support requests)
- *   IT_manager -> IT Manager       (app performance, AI, feedback)
+ *   account_administrator       -> Account Administrator  (accounts, support requests)
+ *   platform_administrator -> Platform Administrator       (app performance, AI, feedback)
  */
 const ROLE_LABELS = {
   user: "User",
-  account_manager: "Account Manager",
-  IT_manager: "IT Manager",
+  account_administrator: "Account Administrator",
+  platform_administrator: "Platform Administrator",
 };
 
-/** "account_manager" -> "Account Manager" */
+/** "account_administrator" -> "Account Administrator" */
 function roleLabel(role) {
   return ROLE_LABELS[role] || "User";
 }
 
-/** "Account Manager" -> "account_manager" (for filters sent to the API) */
+/** "Account Administrator" -> "account_administrator" (for filters sent to the API) */
 function roleFromLabel(label) {
   return Object.keys(ROLE_LABELS).find((slug) => ROLE_LABELS[slug] === label) || null;
 }
@@ -121,15 +125,15 @@ function roleFromLabel(label) {
 /**
  * Each role has its own area of the site:
  *   App users        -> user/ (download the app)
- *   Account Managers -> AM/   (accounts, support requests)
- *   IT Managers      -> IM/   (app performance, AI, feedback)
+ *   Account Administrators  -> AA/ (accounts, support requests)
+ *   Platform Administrators -> PA/ (app performance, AI, feedback)
  * Paths are relative to the site root. Every area is one folder deep, which
  * is what lets requireRole() below use "../" to get back to the root.
  */
 const ROLE_HOME = {
   user: "user/download.html",
-  account_manager: "AM/dashboard.html",
-  IT_manager: "IM/dashboard.html",
+  account_administrator: "AA/dashboard.html",
+  platform_administrator: "PA/dashboard.html",
 };
 
 function homeFor(role) {
@@ -139,8 +143,8 @@ function homeFor(role) {
 /**
  * Like requireAuth, but also sends staff who don't belong on this page to
  * their own dashboard. Call at the top of every admin page, e.g.
- *   requireRole("account_manager");
- *   requireRole("account_manager", "IT_manager");   // shared pages
+ *   requireRole("account_administrator");
+ *   requireRole("account_administrator", "platform_administrator");   // shared pages
  *
  * This only controls navigation. The backend must refuse the data too.
  */
@@ -160,8 +164,8 @@ function requireRole(...allowedRoles) {
       document.body.innerHTML =
         '<div class="form-error" style="margin:40px auto;max-width:620px;">' +
         "This page redirects to itself. Check that its requireRole() line " +
-        "matches the folder it is in (AM/ pages need \"account_manager\", " +
-        'IM/ pages need "IT_manager").</div>';
+        "matches the folder it is in (AA/ pages need \"account_administrator\", " +
+        'PA/ pages need "platform_administrator").</div>';
       return false;
     }
     document.documentElement.style.visibility = "hidden";
@@ -242,7 +246,7 @@ function extractErrorMessage(payload, status) {
 
 const Auth = {
   /**
-   * Logs anyone in: app users, Account Managers and IT Managers. The caller
+   * Logs anyone in: app users, Account Administrators and Platform Administrators. The caller
    * sends them to homeFor(role), and each page guards itself with
    * requireRole(), so one login page serves all three.
    */
@@ -271,7 +275,7 @@ const Auth = {
    * straight back out and told why.
    *
    *   await Auth.loginAs(["user"], email, password);
-   *   await Auth.loginAs(["account_manager"], email, password);   // admin type picked
+   *   await Auth.loginAs(["account_administrator"], email, password);   // admin type picked
    */
   async loginAs(allowedRoles, email, password) {
     const user = await this.login(email, password);
@@ -417,7 +421,7 @@ const Requests = {
   },
 };
 
-/* ---- IT Manager: analytics and feedback ----------------- */
+/* ---- Platform Administrator: analytics and feedback ----------------- */
 
 const Analytics = {
   /** Accuracy series for the chart plus the usage counters. */

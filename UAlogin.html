@@ -20,7 +20,7 @@
 <main class="auth-wrap">
   <form class="auth-card" id="loginForm" novalidate>
     <h1>Admin Login</h1>
-    <p class="auth-sub">For Account Managers and IT Managers.</p>
+    <p class="auth-sub">For Account Administrators and Platform Administrators.</p>
 
     <div id="loginError" class="form-error" style="display:none;"></div>
 
@@ -30,8 +30,8 @@
            needed when the choice is checked against the account. -->
       <select class="input" id="loginType" required>
         <option value="" selected disabled>Select an admin type</option>
-        <option value="account_manager">Account Manager</option>
-        <option value="IT_manager">IT Manager</option>
+        <option value="account_administrator">Account Administrator</option>
+        <option value="platform_administrator">Platform Administrator</option>
       </select>
       <div class="field-hint">Choose the type of admin account you are signing in with.</div>
     </div>
@@ -65,8 +65,8 @@
 <script src="js/app.js"></script>
 <script>
   // Only admin accounts get in here. The admin type picked below narrows that
-  // to one role, so an Account Manager choosing "IT Manager" is refused.
-  const STAFF_ROLES = ["account_manager", "IT_manager"];
+  // to one role, so an Account Administrator choosing "Platform Administrator" is refused.
+  const STAFF_ROLES = ["account_administrator", "platform_administrator"];
 
   const form = document.getElementById("loginForm");
   const submitBtn = form.querySelector("button[type=submit]");

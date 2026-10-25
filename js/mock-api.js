@@ -7,7 +7,7 @@
    against the same URLs and response shapes the real API uses.
 
    ENABLE:  add this line directly AFTER api.js on a page
-              <script src="../js/mock-api.js"></script>   (AM/ and IM/ pages)
+              <script src="../js/mock-api.js"></script>   (AA/ and PA/ pages)
               <script src="js/mock-api.js"></script>      (login.html)
    DISABLE: delete that line. Nothing else needs to change.
 
@@ -15,14 +15,14 @@
    localStorage, so they survive refreshes and page changes.
    Click "reset" on the MOCK DATA badge to restore the seed data.
 
-   Login: any email + any password signs you in as a Account Manager
+   Login: any email + any password signs you in as a Account Administrator
    (Micheal Afton). Seeded emails log in as that account instead, e.g.
-     priyanair@gmail.com   -> IT Manager (no account management)
+     priyanair@gmail.com   -> Platform Administrator (no account management)
      danieltan@gmail.com   -> ordinary app user (tests rejection)
 
    Permissions: accounts and support requests (everything under
-   /admin) belong to Account Managers. IT Managers only reach /me
-   (their own details); their own pages live in IM/.
+   /admin) belong to Account Administrators. Platform Administrators only reach /me
+   (their own details); their own pages live in PA/.
    Once a password is set (Create Account or My Account), that
    account must log in with it.
    ============================================================ */
@@ -30,7 +30,7 @@
 (function () {
   // Bumped when the seed shape changes (here: the role rename), so an old
   // copy in the browser is replaced instead of breaking every page.
-  const STORE_KEY = "knowtrients_mock_db_v3";
+  const STORE_KEY = "knowtrients_mock_db_v4";
   const LATENCY_MS = 300; // lets you see loading states
 
   // Labels come from api.js so the mock and the pages always agree.
@@ -65,12 +65,12 @@
 
   function seed() {
     const accounts = [
-      staff(1, "U001", "Micheal", "Afton", "michealA44@gmail.com", "account_manager", true, 140),
-      staff(2, "U002", "Thomas", "Addison", "eddison67@gmail.com", "account_manager", false, 130),
-      staff(3, "U003", "Samuel", "Liu", "samliu8890@gmail.com", "account_manager", true, 95),
-      staff(4, "U004", "Lebaski", "Addams", "Addamsl1@gmail.com", "account_manager", true, 60),
-      staff(5, "U010", "Priya", "Nair", "priyanair@gmail.com", "IT_manager", true, 180),
-      staff(6, "U011", "Jonas", "Wren", "jonaswren@gmail.com", "IT_manager", true, 175),
+      staff(1, "U001", "Micheal", "Afton", "michealA44@gmail.com", "account_administrator", true, 140),
+      staff(2, "U002", "Thomas", "Addison", "eddison67@gmail.com", "account_administrator", false, 130),
+      staff(3, "U003", "Samuel", "Liu", "samliu8890@gmail.com", "account_administrator", true, 95),
+      staff(4, "U004", "Lebaski", "Addams", "Addamsl1@gmail.com", "account_administrator", true, 60),
+      staff(5, "U010", "Priya", "Nair", "priyanair@gmail.com", "platform_administrator", true, 180),
+      staff(6, "U011", "Jonas", "Wren", "jonaswren@gmail.com", "platform_administrator", true, 175),
 
       appUser(7, "U020", "Clare", "Koh", "koh234@gmail.com", false, 45, {
         onboarding_complete: true, age: 29, gender: "Female", height_cm: 162, weight_kg: 58,
@@ -149,7 +149,7 @@
         status: "resolved", created_at: at(23, 16, 20) },
     ];
 
-    // ---- IT Manager data: AI accuracy over time, usage counts, feedback ----
+    // ---- Platform Administrator data: AI accuracy over time, usage counts, feedback ----
     const days = 14;
     const labels = [];
     const dietary = [], activity = [], sleep = [];
@@ -322,26 +322,26 @@
   }
 
   // The logged-in admin. With requireAuth() commented out there is no session,
-  // so fall back to a Account Manager rather than failing every request.
+  // so fall back to a Account Administrator rather than failing every request.
   function currentUser(db) {
     const sessionUser = Session.user;
     if (sessionUser) {
       return db.accounts.find((a) => a.id === sessionUser.id) || sessionUser;
     }
-    return db.accounts.find((a) => a.role === "account_manager" && a.is_active);
+    return db.accounts.find((a) => a.role === "account_administrator" && a.is_active);
   }
 
-  // App performance, AI accuracy and user feedback are IT Manager work.
+  // App performance, AI accuracy and user feedback are Platform Administrator work.
   function requireITManager(me) {
-    if (!me || me.role !== "IT_manager") {
-      fail(403, "Only IT Managers can access analytics and feedback.");
+    if (!me || me.role !== "platform_administrator") {
+      fail(403, "Only Platform Administrators can access analytics and feedback.");
     }
   }
 
-  // Accounts and support requests are Account Manager responsibilities only.
+  // Accounts and support requests are Account Administrator responsibilities only.
   function requireUserAdmin(me) {
-    if (!me || me.role !== "account_manager") {
-      fail(403, "Only Account Managers can access accounts and support requests.");
+    if (!me || me.role !== "account_administrator") {
+      fail(403, "Only Account Administrators can access accounts and support requests.");
     }
   }
 
@@ -361,11 +361,11 @@
     const me = currentUser(db);
     let m;
 
-    // Analytics and feedback are IT Manager work.
+    // Analytics and feedback are Platform Administrator work.
     if (route.startsWith("/im/")) requireITManager(me);
 
-    // Accounts, support requests and the UA dashboard are Account Manager work.
-    // IT Managers are refused everything under /admin.
+    // Accounts, support requests and the UA dashboard are Account Administrator work.
+    // Platform Administrators are refused everything under /admin.
     if (route.startsWith("/admin/")) requireUserAdmin(me);
 
     // POST /login
@@ -379,7 +379,7 @@
       if (found && found.password && found.password !== body.password) {
         fail(401, "Incorrect email or password.");
       }
-      const account = found || db.accounts.find((a) => a.role === "account_manager" && a.is_active);
+      const account = found || db.accounts.find((a) => a.role === "account_administrator" && a.is_active);
       if (!account.is_active) fail(403, "This account has been suspended.");
       return {
         access_token: "mock-token-" + account.id,
@@ -388,7 +388,7 @@
       };
     }
 
-    // GET /im/analytics  (performance and AI accuracy for the IT Manager)
+    // GET /im/analytics  (performance and AI accuracy for the Platform Administrator)
     if (method === "GET" && route === "/im/analytics") {
       const a = db.analytics;
       const avg = (xs) => Math.round((xs.reduce((t, n) => t + n, 0) / xs.length) * 10) / 10;
@@ -557,8 +557,8 @@
         new_users_7d: users.filter((a) => new Date(a.created_at) >= weekAgo).length,
         unresolved_requests: db.requests.filter((r) => r.status === "unresolved").length,
         resolved_requests: db.requests.filter((r) => r.status === "resolved").length,
-        account_managers: db.accounts.filter((a) => a.role === "account_manager").length,
-        IT_managers: db.accounts.filter((a) => a.role === "IT_manager").length,
+        account_administrators: db.accounts.filter((a) => a.role === "account_administrator").length,
+        platform_administrators: db.accounts.filter((a) => a.role === "platform_administrator").length,
         logs_today: db.stats.logs_today,
         recommendations_today: db.stats.recommendations_today,
       };
@@ -575,8 +575,8 @@
       if (!body.password || body.password.length < 8) {
         fail(422, "Password must be at least 8 characters.");
       }
-      if (body.role !== "account_manager" && body.role !== "IT_manager") {
-        fail(422, "Role must be Account Manager or IT Manager.");
+      if (body.role !== "account_administrator" && body.role !== "platform_administrator") {
+        fail(422, "Role must be Account Administrator or Platform Administrator.");
       }
       if (db.accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
         fail(409, "An account with this email already exists.");
