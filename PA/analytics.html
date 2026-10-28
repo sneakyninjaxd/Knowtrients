@@ -69,7 +69,6 @@
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
-<script src="../js/mock-api.js"></script>
 <script src="../js/chart.js"></script>
 <script src="../js/app.js"></script>
 <script>
@@ -87,14 +86,23 @@
   async function load(){
     try {
       const a = await Analytics.summary();
+  // Percentages may be null — no ratings, or no traffic yet — so show a dash
+  // rather than "null%".
+  const pct = (v) => (v === null || v === undefined ? "\u2014" : `${v}%`);
+  const num = (v) => (v === null || v === undefined ? "\u2014" : v);
 
+
+      // Last seven days pooled: a single day is usually empty unless the app
+      // has many users rating recommendations.
+      const recent = a.accuracy_recent || a.accuracy_today;
       $("accuracyRow").innerHTML = [
-        ["Dietary", a.accuracy_today.dietary, "#8b7bd8"],
-        ["Activity", a.accuracy_today.activity, "#e2635c"],
-        ["Sleep", a.accuracy_today.sleep, "#4cc9e8"],
+        ["Dietary", recent.dietary, "#8b7bd8"],
+        ["Activity", recent.activity, "#e2635c"],
+        ["Sleep", recent.sleep, "#4cc9e8"],
       ].map(([name, value, colour]) =>
         `<span><span class="chart-dot" style="background:${colour}"></span>
-          ${name} <b style="color:${colour}">${value}%</b></span>`).join("");
+          ${name} <b style="color:${colour}">${pct(value)}</b></span>`).join("")
+        + `<span class="card-note" style="margin-left:auto;">Last 7 days</span>`;
 
       lineChart($("accuracyChart"), {
         labels: a.labels,
@@ -103,15 +111,24 @@
           { name: "Activity", color: "#e2635c", values: a.accuracy.activity },
           { name: "Sleep", color: "#4cc9e8", values: a.accuracy.sleep },
         ],
+        emptyText: "No recommendations have been rated in this period yet.",
       });
 
+      // There's no ground truth for whether a recommendation was right, so
+      // accuracy here is what users say: the share of rated recommendations
+      // they marked helpful. Gaps are days with no ratings.
       $("accuracyNote").textContent =
-        `Averages over the period dietary ${a.accuracy_average.dietary}%, ` +
-        `activity ${a.accuracy_average.activity}%, sleep ${a.accuracy_average.sleep}%.`;
+        `Share of rated recommendations users found helpful. Over the last ` +
+        `${a.period_days || a.labels.length} days: dietary ${pct(a.accuracy_average.dietary)}, ` +
+        `activity ${pct(a.accuracy_average.activity)}, sleep ${pct(a.accuracy_average.sleep)}. ` +
+        `Gaps are days with no ratings.`;
 
       $("performanceGrid").innerHTML = [
-        tile(a.uptime_pct + "%", "Uptime (30 days)"),
-        tile(a.errors_24h, "Pending Bug Reports"),
+        // A server can't record its own downtime, so this is the share of
+        // requests that didn't fail with a server error.
+        tile(pct(a.request_success_pct ?? a.uptime_pct), "Request success rate (30 days)"),
+        tile(a.avg_response_ms == null ? "\u2014" : `${a.avg_response_ms} ms`, "Average response (7 days)"),
+        tile(num(a.open_feedback), "Pending Bug Reports"),
       ].join("");
 
       $("usageGrid").innerHTML = [
@@ -122,7 +139,7 @@
       ].join("");
 
       $("feedbackGrid").innerHTML = [
-        tile(a.total_feedback, "Total feedback"),
+        tile(num(a.total_feedback), "Total ratings"),
         tile(a.likes, "Likes"),
         tile(a.dislikes, "Dislikes"),
         tile(a.unrated, "Unrated"),
