@@ -34,9 +34,16 @@ To override, change `API_BASE_URL` at the top of `js/api.js`.
 
 ## Mock backend
 
-`js/mock-api.js` stands in for the API during development. A page uses it when
-it loads that script after `js/api.js`; comment the line out to use the real
-backend. Data is kept in the browser, and the badge in the corner resets it.
+Every page now talks to the real backend. `js/mock-api.js` is kept for working
+offline: to use it on a page, add this line directly after the `api.js` line —
+
+```html
+<script src="../js/mock-api.js"></script>   <!-- pages in AA/, PA/, user/ -->
+<script src="js/mock-api.js"></script>      <!-- pages in the root folder -->
+```
+
+Remove it again before committing. Its data lives in the browser, and the
+badge in the corner resets it.
 
 ## Roles
 
@@ -48,9 +55,10 @@ Role names in the database and the API:
 | `account_administrator` | Account Administrator | `AA/dashboard.html` |
 | `platform_administrator` | Platform Administrator | `PA/dashboard.html` |
 
-`js/api.js` translates the earlier names (`user_admin`, `account_manager`,
-`platform_manager`, `IT_manager`) so old sessions and an API that hasn't caught
-up still work.
+The backend stores these names and renamed existing accounts automatically.
+`js/api.js` still translates the earlier names (`user_admin`,
+`account_manager`, `platform_manager`, `IT_manager`) in case a browser has an
+old session saved.
 
 ## Permissions
 
@@ -61,7 +69,12 @@ up still work.
 
 Nobody can suspend, re-role or delete their own account. Each page calls
 `requireRole()` on load and sends anyone else to their own dashboard, but that
-is navigation only: the backend has to enforce the same rules.
+is navigation only — the backend enforces the same rules, so a Platform
+Administrator calling an `/admin/` route directly gets a 403.
+
+**Support requests are split between the two roles.** Account requests go to
+the Account Administrator's Requests pages; bug reports go to the Platform
+Administrator's Feedback pages. Each request appears in exactly one queue.
 
 ## Signing in
 
@@ -97,12 +110,41 @@ session and shows a message.
 | `PA/feedback-detail.html` | Read feedback, reply, resolve or reopen |
 | `PA/my-PAaccount.html` | Own name, password, log out |
 
-## Still to build on the backend
+## What the analytics figures mean
 
-These endpoints the site calls do not exist yet:
+**AI accuracy chart.** There is no ground truth saying whether a
+recommendation was correct, so the chart shows what users say about them:
+each point is the share of that day's *rated* recommendations that users
+marked helpful. A day with no ratings is a gap in the line, not a zero —
+a zero would claim the AI was 0% helpful that day. The figures above the
+chart are the last seven days pooled, since a single day is usually empty
+until the app has many users.
 
-- `POST /register` — public sign-up (hash the password, role `user`)
-- `POST /admin/accounts` — create an administrator account
-- `PATCH /me` and `POST /me/password` — own name and password
-- `GET /im/analytics`, `GET /im/feedback` and its `/reply` and `/status` routes
-- Deleting an app user must also remove their logs, recommendations and requests
+**Request success rate.** A server can't record its own downtime, so instead
+of an uptime figure the dashboard shows the share of requests over 30 days
+that didn't fail with a server error. Response times are averaged over the
+last seven days. Both show "—" until there is traffic to measure.
+
+**Bug reports (24h).** New bug reports raised in the last 24 hours.
+**Pending bug reports** is the number still unresolved.
+
+**Likes, dislikes, unrated.** Ratings given to recommendations over the
+period. Unrated is recommendations shown that nobody rated.
+
+## Backend endpoints used
+
+| Page | Calls |
+|---|---|
+| `register.html` | `POST /register` |
+| `login.html`, `UAlogin.html` | `POST /login` |
+| `AA/dashboard.html` | `GET /admin/dashboard`, `GET /admin/requests` |
+| `AA/accounts.html` | `GET /admin/accounts` |
+| `AA/view-account.html` | `GET`, `PATCH`, `DELETE /admin/accounts/{id}` |
+| `AA/create-account.html` | `POST /admin/accounts` |
+| `AA/requests.html`, `request-detail.html` | `/admin/requests?type=account` and its reply and status routes |
+| `PA/dashboard.html`, `analytics.html` | `GET /im/analytics` |
+| `PA/feedback.html`, `feedback-detail.html` | `/im/feedback` and its reply and status routes |
+| `AA/my-account.html`, `PA/my-PAaccount.html` | `GET /me`, `PATCH /me`, `POST /me/password` |
+
+Deleting an app user removes everything belonging to them — logs,
+recommendations, ratings, support requests and their messages.

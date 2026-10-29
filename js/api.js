@@ -211,8 +211,18 @@ async function apiFetch(path, options = {}) {
   }
 
   if (response.status === 401) {
-    Session.clear();
-    throw new ApiError("Your session has expired. Please log in again.", 401);
+    // A 401 means two different things. With a session token attached, the
+    // session has expired. Without one — logging in or registering — it means
+    // the email or password was wrong, and the server's own message says so.
+    // Treating every 401 as an expired session showed "Your session has
+    // expired" on the login page for a mistyped password.
+    if (headers.Authorization) {
+      Session.clear();
+      throw new ApiError("Your session has expired. Please log in again.", 401);
+    }
+    let detail = null;
+    try { detail = await response.json(); } catch { /* no body */ }
+    throw new ApiError(extractErrorMessage(detail, 401), 401);
   }
 
   if (response.status === 204) return null;
@@ -251,6 +261,10 @@ const Auth = {
    * requireRole(), so one login page serves all three.
    */
   async login(email, password) {
+    // Start clean: a stale token left in the browser would otherwise be sent
+    // with the login request, and a wrong password would then read as an
+    // expired session.
+    Session.clear();
     const data = await apiFetch("/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
@@ -289,9 +303,11 @@ const Auth = {
       } else if (user.role === "user") {
         message = "This is the staff login. Use the main login page for your account.";
       } else {
+        // "an Account Administrator" but "a Platform Administrator".
+        const article = (label) => (/^[AEIOU]/i.test(label) ? "an " : "a ") + label;
         message = `This account is not ${
-          allowedRoles.length === 1 ? "an " + roleLabel(allowedRoles[0]) : "a staff account"
-        }. It is ${roleLabel(user.role)} — pick that admin type instead.`;
+          allowedRoles.length === 1 ? article(roleLabel(allowedRoles[0])) : "a staff account"
+        }. It is ${article(roleLabel(user.role))} — pick that admin type instead.`;
       }
       throw new ApiError(message, 403);
     }
@@ -303,6 +319,7 @@ const Auth = {
    * same shape as /login, so the new user is signed in straight away.
    */
   async register({ first_name, last_name, email, password }) {
+    Session.clear();
     const data = await apiFetch("/register", {
       method: "POST",
       body: JSON.stringify({ first_name, last_name, email, password }),
@@ -399,6 +416,10 @@ const Requests = {
     }
     if (filters.q) params.set("q", filters.q);
 
+    // Account requests only. Bug reports are the Platform Administrator's,
+    // shown on their Feedback pages, so each request has one owner.
+    params.set("type", filters.type || "account");
+
     const query = params.toString();
     return apiFetch("/admin/requests" + (query ? `?${query}` : ""));
   },
@@ -463,6 +484,14 @@ const Feedback = {
 
 /** Feedback categories are slugs; these are what the pages show. */
 const FEEDBACK_LABELS = {
+  // Bug report categories sent by the app's bug form.
+  bug_logging: "Logging",
+  bug_insights: "Insights",
+  bug_profile: "Profile",
+  bug_account: "Account",
+  bug_other: "Other bug",
+  bug_report: "Bug report",
+  // Earlier mock categories.
   ai_accuracy: "AI Accuracy",
   performance: "Performance",
   explanation: "Explanation Quality",
@@ -470,8 +499,16 @@ const FEEDBACK_LABELS = {
   other: "Other",
 };
 
-function feedbackLabel(slug) {
-  return FEEDBACK_LABELS[slug] || "Other";
+/**
+ * Accepts a category slug or a whole feedback item. Items from the API carry
+ * their own `category_label`, which is preferred so a new category shows
+ * correctly without updating this map.
+ */
+function feedbackLabel(slugOrItem) {
+  if (slugOrItem && typeof slugOrItem === "object") {
+    return slugOrItem.category_label || FEEDBACK_LABELS[slugOrItem.category] || "Other";
+  }
+  return FEEDBACK_LABELS[slugOrItem] || "Other";
 }
 
 /* ---- Dashboard ------------------------------------------ */
@@ -526,15 +563,27 @@ function formatDate(iso) {
 
 /** Request categories are stored as slugs; these are the display labels. */
 const CATEGORY_LABELS = {
-  password_change: "Password Change",
+  // Account request categories sent by the app's support form.
+  password: "Password",
+  account: "Account",
   subscription: "Subscription",
+  account_other: "Other account issue",
+  // Earlier categories, still present on older requests.
+  password_change: "Password Change",
   account_recovery: "Account Recovery",
   bug_report: "Bug Report",
   other: "Other",
 };
 
-function categoryLabel(slug) {
-  return CATEGORY_LABELS[slug] || "Other";
+/**
+ * Accepts a category slug or a whole request. Requests from the API carry
+ * their own `category_label`, which is preferred.
+ */
+function categoryLabel(slugOrItem) {
+  if (slugOrItem && typeof slugOrItem === "object") {
+    return slugOrItem.category_label || CATEGORY_LABELS[slugOrItem.category] || "Other";
+  }
+  return CATEGORY_LABELS[slugOrItem] || "Other";
 }
 
 /** Capitalises a status slug for display: "unresolved" → "Unresolved". */

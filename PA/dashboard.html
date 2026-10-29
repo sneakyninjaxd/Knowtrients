@@ -81,7 +81,6 @@
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
-<script src="../js/mock-api.js"></script>
 <script src="../js/chart.js"></script>
 <script src="../js/app.js"></script>
 <script>
@@ -100,20 +99,26 @@
     $("statGrid").innerHTML = `<div class="empty-hint">Loading\u2026</div>`;
     try {
       const a = await Analytics.summary();
+  // Percentages may be null — no ratings, or no traffic yet — so show a dash
+  // rather than "null%".
+  const pct = (v) => (v === null || v === undefined ? "\u2014" : `${v}%`);
+  const num = (v) => (v === null || v === undefined ? "\u2014" : v);
+
 
       $("statGrid").innerHTML = [
-        tile(a.uptime_pct + "%", "Uptime (30 days)"),
-        tile(a.errors_24h, "Bug Reports (24h)")
+        tile(pct(a.request_success_pct ?? a.uptime_pct), "Request success rate (30 days)"),
+        tile(num(a.bug_reports_24h ?? a.errors_24h), "Bug Reports (24h)")
       ].join("");
 
-      // Today's figures sit above the chart, as in the mockup.
+      // Last seven days pooled, shown above the chart.
+      const recent = a.accuracy_recent || a.accuracy_today;
       $("accuracyRow").innerHTML = [
-        ["Dietary", a.accuracy_today.dietary, "#8b7bd8"],
-        ["Activity", a.accuracy_today.activity, "#e2635c"],
-        ["Sleep", a.accuracy_today.sleep, "#4cc9e8"],
+        ["Dietary", recent.dietary, "#8b7bd8"],
+        ["Activity", recent.activity, "#e2635c"],
+        ["Sleep", recent.sleep, "#4cc9e8"],
       ].map(([name, value, colour]) =>
         `<span><span class="chart-dot" style="background:${colour}"></span>
-          ${name} \u2013 <b style="color:${colour}">${value}%</b></span>`).join("");
+          ${name} \u2013 <b style="color:${colour}">${pct(value)}</b></span>`).join("");
 
       lineChart($("accuracyChart"), {
         labels: a.labels,
@@ -122,13 +127,15 @@
           { name: "Activity", color: "#e2635c", values: a.accuracy.activity },
           { name: "Sleep", color: "#4cc9e8", values: a.accuracy.sleep },
         ],
+        emptyText: "No recommendations have been rated in this period yet.",
       });
 
+      const period = `Last ${a.period_days || a.labels.length} days`;
       $("updatesList").innerHTML = [
         [`${a.open_feedback} feedback item${a.open_feedback === 1 ? "" : "s"} waiting`, "Now"],
-        [`${a.insights_generated} insights generated`, "All time"],
-        [`${a.likes} likes, ${a.dislikes} dislikes`, "All time"],
-        [`${a.errors_24h} error${a.errors_24h === 1 ? "" : "s"} logged`, "Last 24 hours"],
+        [`${a.insights_generated} insights generated`, period],
+        [`${a.likes} likes, ${a.dislikes} dislikes`, period],
+        [`${a.bug_reports_24h ?? a.errors_24h} new bug report${(a.bug_reports_24h ?? a.errors_24h) === 1 ? "" : "s"}`, "Last 24 hours"],
       ].map(([text, when]) => `<li>
         <span class="t-time">${escapeHtml(when)}</span>
         <span class="t-text">${escapeHtml(text)}</span>

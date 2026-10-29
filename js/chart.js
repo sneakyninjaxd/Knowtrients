@@ -12,12 +12,23 @@
        ],
      });
 
-   Options: yMax (default 100), yStep (default 20), unit (default "%").
+   Options: yMax (default 100), yStep (default 20), unit (default "%"),
+   emptyText (shown when there is nothing to plot).
    Call it again with new data to redraw; it replaces what was there.
+
+   Missing values: a null in `values` means "no data that day", not zero.
+   The line breaks there instead of dropping to the axis, so a day nobody
+   rated anything doesn't look like a day the AI was 0% helpful. A value
+   with no neighbour on either side is drawn as a dot.
    ============================================================ */
 
-function lineChart(container, { labels = [], series = [], yMax = 100, yStep = 20, unit = "%" } = {}) {
+function lineChart(container, {
+  labels = [], series = [], yMax = 100, yStep = 20, unit = "%",
+  emptyText = "No data to chart yet.",
+} = {}) {
   if (!container) return;
+
+  const hasValue = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
   // The drawing uses a fixed coordinate space and the SVG scales itself to
   // whatever width the card happens to be, so it works on phones too.
@@ -26,8 +37,9 @@ function lineChart(container, { labels = [], series = [], yMax = 100, yStep = 20
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
 
-  if (!labels.length || !series.length) {
-    container.innerHTML = `<div class="empty-hint">No data to chart yet.</div>`;
+  const anyData = series.some((s) => (s.values || []).some(hasValue));
+  if (!labels.length || !series.length || !anyData) {
+    container.innerHTML = `<div class="empty-hint">${escapeHtml(emptyText)}</div>`;
     return;
   }
 
@@ -54,16 +66,34 @@ function lineChart(container, { labels = [], series = [], yMax = 100, yStep = 20
       text-anchor="middle">${escapeHtml(label)}</text>`);
   });
 
-  // One line per series, with a soft fill underneath.
+  // One line per series, with a soft fill underneath. Each unbroken run of
+  // values is drawn separately, so gaps stay gaps.
   series.forEach((s) => {
-    const points = s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
     const colour = s.color || "var(--mint)";
-    parts.push(`<polygon points="${PAD.left},${y(0)} ${points} ${x(s.values.length - 1)},${y(0)}"
-      fill="${colour}" opacity=".10" />`);
-    parts.push(`<polyline points="${points}" fill="none" stroke="${colour}"
-      stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />`);
-    s.values.forEach((v, i) => {
-      parts.push(`<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${colour}">
+    const runs = [];
+    let run = [];
+    (s.values || []).forEach((v, i) => {
+      if (hasValue(v)) {
+        run.push([i, Number(v)]);
+      } else if (run.length) {
+        runs.push(run);
+        run = [];
+      }
+    });
+    if (run.length) runs.push(run);
+
+    runs.forEach((r) => {
+      if (r.length < 2) return; // a lone point gets only its dot, below
+      const points = r.map(([i, v]) => `${x(i)},${y(v)}`).join(" ");
+      parts.push(`<polygon points="${x(r[0][0])},${y(0)} ${points} ${x(r[r.length - 1][0])},${y(0)}"
+        fill="${colour}" opacity=".10" />`);
+      parts.push(`<polyline points="${points}" fill="none" stroke="${colour}"
+        stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />`);
+    });
+
+    (s.values || []).forEach((v, i) => {
+      if (!hasValue(v)) return;
+      parts.push(`<circle cx="${x(i)}" cy="${y(Number(v))}" r="3" fill="${colour}">
         <title>${escapeHtml(s.name || "")} ${escapeHtml(labels[i])}: ${v}${unit}</title>
       </circle>`);
     });
@@ -73,10 +103,13 @@ function lineChart(container, { labels = [], series = [], yMax = 100, yStep = 20
 
   // Legend below the chart.
   const legend = series
-    .map((s) => `<span class="chart-key">
+    .map((s) => {
+      const empty = !(s.values || []).some(hasValue);
+      return `<span class="chart-key"${empty ? ' style="opacity:.55"' : ""}>
         <span class="chart-dot" style="background:${s.color || "var(--mint)"}"></span>
-        ${escapeHtml(s.name || "")}
-      </span>`)
+        ${escapeHtml(s.name || "")}${empty ? " (no data)" : ""}
+      </span>`;
+    })
     .join("");
 
   container.innerHTML = parts.join("") + `<div class="chart-legend">${legend}</div>`;
