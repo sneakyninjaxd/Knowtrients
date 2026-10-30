@@ -59,14 +59,18 @@
     </div>
 
     <div class="card" style="margin-bottom:24px;">
-      <h2>Message</h2>
-      <div id="attachments" class="detail-actions" style="margin-top:0;"></div>
-      <div class="message-body" id="feedbackBody"></div>
-      <div id="existingReply"></div>
+      <div class="flex-between" style="margin-bottom:14px;">
+        <div class="thread-head">
+          <h2 class="mt-0">Conversation</h2>
+          <span class="awaiting-chip" id="awaitingChip" style="display:none;">Awaiting your reply</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="refreshBtn" type="button">Refresh</button>
+      </div>
+      <div class="thread" id="thread"></div>
     </div>
 
     <div class="card" id="replyCard">
-      <h2 id="replyHeading">Reply</h2>
+      <h2>Reply</h2>
       <textarea class="reply-box" id="replyBody"
         placeholder="Write your response to the user\u2026"></textarea>
       <div class="detail-actions">
@@ -102,6 +106,8 @@
     </div>`;
   }
 
+  let messages = [];
+
   function render(){
     $("feedbackSubject").textContent = item.subject;
     $("feedbackContent").style.display = "block";
@@ -117,28 +123,22 @@
       kv("Received", formatDateTime(item.created_at)),
     ].join("");
 
-    // Attachments are shown as chips; the mock has no files behind them yet.
-    $("attachments").innerHTML = (item.attachments || [])
-      .map(name => `<span class="attachment-chip"> ${escapeHtml(name)}</span>`)
-      .join("");
-
-    $("feedbackBody").textContent = item.body;
-
-    const replyEl = $("existingReply");
-    if (item.reply) {
-      replyEl.innerHTML = `<div class="reply-shown">
-        <div class="reply-meta">Replied by ${escapeHtml(item.handled_by_name || "an admin")}
-          \u00b7 ${escapeHtml(formatDateTime(item.replied_at))}</div>
-        <div class="message-body">${escapeHtml(item.reply)}</div>
-      </div>`;
-      $("replyHeading").textContent = "Update Reply";
-      $("replyBody").value = item.reply;
-    } else {
-      replyEl.innerHTML = "";
-    }
+    // The whole conversation, so a follow-up from the user after a reply is
+    // visible here rather than sitting unseen in the database.
+    renderThread($("thread"), item, messages);
+    $("awaitingChip").style.display =
+      awaitingReply(messages) && item.status !== "resolved" ? "inline-block" : "none";
 
     $("toggleStatusBtn").textContent =
       item.status === "resolved" ? "Reopen Feedback" : "Mark Resolved";
+  }
+
+  /** Pulls the feedback item and its messages together. */
+  async function fetchAll(){
+    item = await Feedback.get(feedbackId);
+    messages = Array.isArray(item.messages)
+      ? item.messages
+      : await Feedback.messages(item.id);
   }
 
   async function send(resolve){
@@ -149,7 +149,9 @@
     buttons.forEach(b => b.disabled = true);
 
     try {
-      item = await Feedback.reply(item.id, body, resolve);
+      await Feedback.sendMessage(item.id, body, resolve);
+      $("replyBody").value = "";
+      await fetchAll();
       render();
       showToast(resolve ? "Reply sent and feedback resolved." : "Reply sent.");
     } catch (err) {
@@ -175,14 +177,32 @@
     }
   }
 
+  /** Re-reads the conversation so a new message from the user shows up. */
+  async function refresh(){
+    const btn = $("refreshBtn");
+    btn.disabled = true;
+    try {
+      await fetchAll();
+      render();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   async function load(){
     if(!feedbackId){ showError("No feedback specified."); return; }
     try {
-      item = await Feedback.get(feedbackId);
+      await fetchAll();
       render();
       $("sendResolveBtn").addEventListener("click", () => send(true));
       $("sendOnlyBtn").addEventListener("click", () => send(false));
       $("toggleStatusBtn").addEventListener("click", toggleStatus);
+      $("refreshBtn").addEventListener("click", refresh);
+
+      // Check for new messages while the tab is in front.
+      setInterval(() => { if(!document.hidden) refresh(); }, 30000);
     } catch (err) {
       showError(err.message);
     }

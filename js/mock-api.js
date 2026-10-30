@@ -30,7 +30,7 @@
 (function () {
   // Bumped when the seed shape changes (here: the role rename), so an old
   // copy in the browser is replaced instead of breaking every page.
-  const STORE_KEY = "knowtrients_mock_db_v4";
+  const STORE_KEY = "knowtrients_mock_db_v5";
   const LATENCY_MS = 300; // lets you see loading states
 
   // Labels come from api.js so the mock and the pages always agree.
@@ -203,8 +203,33 @@
         replied_at: at(14, 14, 12), handled_by_name: "Jonas Wren" },
     ];
 
+    // support_messages: the conversation on each request. The first row is
+    // what the user wrote; replies from either side follow. R104 has a
+    // follow-up the user sent AFTER being answered — the case that used to
+    // be invisible to staff.
+    const messages = [
+      { id: 1, request_id: 101, kind: "request", sender_role: "user", sender_name: "Clare Koh",
+        body: requests[0].body, created_at: requests[0].created_at },
+      { id: 2, request_id: 104, kind: "request", sender_role: "user", sender_name: "Gopal Reddy",
+        body: requests[3].body, created_at: requests[3].created_at },
+      { id: 3, request_id: 104, kind: "request", sender_role: "account_administrator",
+        sender_name: "Micheal Afton", body: requests[3].reply, created_at: requests[3].replied_at },
+      { id: 4, request_id: 104, kind: "request", sender_role: "user", sender_name: "Gopal Reddy",
+        body: "Thanks, but the reset link still isn't arriving. Could you check the email on file?",
+        created_at: at(1, 9, 15) },
+      { id: 5, request_id: 201, kind: "feedback", sender_role: "user", sender_name: "Clare Koh",
+        body: feedback[0].body, created_at: feedback[0].created_at },
+      { id: 6, request_id: 204, kind: "feedback", sender_role: "user", sender_name: "Gopal Reddy",
+        body: feedback[3].body, created_at: feedback[3].created_at },
+      { id: 7, request_id: 204, kind: "feedback", sender_role: "platform_administrator",
+        sender_name: "Priya Nair", body: feedback[3].reply, created_at: feedback[3].replied_at },
+      { id: 8, request_id: 204, kind: "feedback", sender_role: "user", sender_name: "Gopal Reddy",
+        body: "It's better today, but breakfast suggestions still repeat.",
+        created_at: at(2, 18, 40) },
+    ];
+
     return {
-      accounts, requests, feedback, analytics,
+      accounts, requests, feedback, messages, analytics,
       stats: { logs_today: 14, recommendations_today: 6 },
     };
   }
@@ -287,6 +312,33 @@
       replied_at: f.replied_at ?? null,
       handled_by_name: f.handled_by_name ?? null,
     };
+  }
+
+  /** Messages on one request or feedback item, oldest first. */
+  function threadFor(db, kind, id) {
+    return (db.messages || [])
+      .filter((m) => m.kind === kind && m.request_id === id)
+      .map((m) => ({
+        id: m.id,
+        sender_role: m.sender_role,
+        sender_name: m.sender_name,
+        body: m.body,
+        created_at: m.created_at,
+        read_at: m.read_at || null,
+      }))
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  }
+
+  /** Appends a message and returns the thread. */
+  function addMessage(db, kind, id, me, body) {
+    const nextId = Math.max(0, ...(db.messages || []).map((m) => m.id)) + 1;
+    db.messages = db.messages || [];
+    db.messages.push({
+      id: nextId, request_id: id, kind,
+      sender_role: me.role, sender_name: fullName(me),
+      body, created_at: new Date().toISOString(),
+    });
+    return threadFor(db, kind, id);
   }
 
   function requestShape(r, db) {
@@ -433,6 +485,28 @@
         .map((f) => feedbackShape(f, db))
         .filter((f) => matches(q, f.display_id, f.subject, f.body, f.user_name, f.user_email, f.user_display_id))
         .sort(newestFirst);
+    }
+
+    // /im/feedback/:id/messages — the conversation
+    if ((m = route.match(/^\/im\/feedback\/(\d+)\/messages$/))) {
+      const id = Number(m[1]);
+      const item = db.feedback.find((f) => f.id === id);
+      if (!item) fail(404, "Feedback not found.");
+
+      if (method === "GET") return threadFor(db, "feedback", id);
+
+      if (method === "POST") {
+        const text = (body.body || "").trim();
+        if (!text) fail(422, "Reply cannot be empty.");
+        const thread = addMessage(db, "feedback", id, me, text);
+        item.reply = text;
+        item.replied_at = new Date().toISOString();
+        item.handled_by_name = fullName(me);
+        if (body.resolve) item.status = "resolved";
+        else if (item.status === "resolved") item.status = "unresolved";
+        save(db);
+        return { ...feedbackShape(item, db), messages: thread };
+      }
     }
 
     // /im/feedback/:id and sub-routes
@@ -652,6 +726,30 @@
         .map((r) => requestShape(r, db))
         .filter((r) => matches(q, r.display_id, r.subject, r.body, r.user_name, r.user_email, r.user_display_id))
         .sort(newestFirst);
+    }
+
+    // /admin/requests/:id/messages — the conversation
+    if ((m = route.match(/^\/admin\/requests\/(\d+)\/messages$/))) {
+      const id = Number(m[1]);
+      const request = db.requests.find((r) => r.id === id);
+      if (!request) fail(404, "Request not found.");
+
+      if (method === "GET") return threadFor(db, "request", id);
+
+      if (method === "POST") {
+        const text = (body.body || "").trim();
+        if (!text) fail(422, "Reply cannot be empty.");
+        const thread = addMessage(db, "request", id, me, text);
+        // The reply columns still hold the most recent staff reply, for the
+        // app and for anything not yet reading the thread.
+        request.reply = text;
+        request.replied_at = new Date().toISOString();
+        request.handled_by_name = fullName(me);
+        if (body.resolve) request.status = "resolved";
+        else if (request.status === "resolved") request.status = "unresolved";
+        save(db);
+        return { ...requestShape(request, db), messages: thread };
+      }
     }
 
     // /admin/requests/:id and sub-routes
