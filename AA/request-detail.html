@@ -62,13 +62,18 @@
     </div>
 
     <div class="card" style="margin-bottom:24px;">
-      <h2>Message</h2>
-      <div class="message-body" id="requestBody"></div>
-      <div id="existingReply"></div>
+      <div class="flex-between" style="margin-bottom:14px;">
+        <div class="thread-head">
+          <h2 class="mt-0">Conversation</h2>
+          <span class="awaiting-chip" id="awaitingChip" style="display:none;">Awaiting your reply</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="refreshBtn" type="button">Refresh</button>
+      </div>
+      <div class="thread" id="thread"></div>
     </div>
 
     <div class="card" id="replyCard">
-      <h2 id="replyHeading">Reply</h2>
+      <h2>Reply</h2>
       <textarea class="reply-box" id="replyBody"
         placeholder="Write your response to the user…"></textarea>
       <div class="detail-actions">
@@ -107,6 +112,8 @@
     </div>`;
   }
 
+  let messages = [];
+
   function render(){
     subjectEl.textContent = request.subject;
     contentEl.style.display = "block";
@@ -127,26 +134,23 @@
       kv("Received", formatDateTime(request.created_at)),
     ].join("");
 
-    document.getElementById("requestBody").textContent = request.body;
+    // The whole conversation, not just the first message and one reply, so a
+    // follow-up the user sends after being answered is visible here.
+    renderThread(document.getElementById("thread"), request, messages);
+    document.getElementById("awaitingChip").style.display =
+      awaitingReply(messages) && request.status !== "resolved" ? "inline-block" : "none";
 
-    // An existing reply is shown above the compose box, so an admin editing a
-    // previous response can see what was already sent.
-    const replyEl = document.getElementById("existingReply");
-    if (request.reply) {
-      replyEl.innerHTML = `<div class="reply-shown">
-        <div class="reply-meta">Replied by ${escapeHtml(request.handled_by_name || "an admin")}
-          · ${escapeHtml(formatDateTime(request.replied_at))}</div>
-        <div class="message-body">${escapeHtml(request.reply)}</div>
-      </div>`;
-      document.getElementById("replyHeading").textContent = "Update Reply";
-      document.getElementById("replyBody").value = request.reply;
-    } else {
-      replyEl.innerHTML = "";
-    }
-
-    const toggleBtn = document.getElementById("toggleStatusBtn");
-    toggleBtn.textContent =
+    document.getElementById("toggleStatusBtn").textContent =
       request.status === "resolved" ? "Reopen Request" : "Mark Resolved";
+  }
+
+  /** Pulls the request and its messages together. */
+  async function fetchAll(){
+    request = await Requests.get(requestId);
+    // A server that already embeds the thread saves a second round trip.
+    messages = Array.isArray(request.messages)
+      ? request.messages
+      : await Requests.messages(request.id);
   }
 
   async function send(resolve){
@@ -157,7 +161,9 @@
     buttons.forEach(b => b.disabled = true);
 
     try {
-      request = await Requests.reply(request.id, body, resolve);
+      await Requests.sendMessage(request.id, body, resolve);
+      document.getElementById("replyBody").value = "";
+      await fetchAll();
       render();
       showToast(resolve ? "Reply sent and request resolved." : "Reply sent.");
     } catch (err) {
@@ -183,10 +189,24 @@
     }
   }
 
+  /** Re-reads the conversation so a new message from the user shows up. */
+  async function refresh(){
+    const btn = document.getElementById("refreshBtn");
+    btn.disabled = true;
+    try {
+      await fetchAll();
+      render();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   async function load(){
     if(!requestId){ showError("No request specified."); return; }
     try {
-      request = await Requests.get(requestId);
+      await fetchAll();
       render();
       document.getElementById("sendResolveBtn")
         .addEventListener("click", () => send(true));
@@ -194,6 +214,12 @@
         .addEventListener("click", () => send(false));
       document.getElementById("toggleStatusBtn")
         .addEventListener("click", toggleStatus);
+      document.getElementById("refreshBtn")
+        .addEventListener("click", refresh);
+
+      // Check for new messages while the page is open, but only while the tab
+      // is in front, so a forgotten tab isn't polling all day.
+      setInterval(() => { if(!document.hidden) refresh(); }, 30000);
     } catch (err) {
       showError(err.message);
     }

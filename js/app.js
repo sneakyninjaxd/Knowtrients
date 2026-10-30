@@ -91,6 +91,73 @@ document.addEventListener("DOMContentLoaded", ()=>{
   initWelcomeChip();
 });
 
+// ---- Conversation thread (request and feedback detail pages) ----
+// A request is a conversation, not a single question and a single answer.
+// The first message is what the user wrote; every reply from either side is
+// another row. Without this, a follow-up from the user is in the database but
+// invisible to staff, which is exactly the bug this replaced.
+//
+//   renderThread(container, item, messages)
+//
+// `item` is the request or feedback object, `messages` the rows from
+// Requests.messages() / Feedback.messages(). If the server hasn't been
+// updated yet it may send only item.body and item.reply; both shapes render.
+function renderThread(container, item, messages){
+  if(!container) return;
+
+  let rows = Array.isArray(messages) ? messages.slice() : [];
+
+  // Fall back to the old single-reply shape so the page still works against
+  // a backend that hasn't added support_messages yet.
+  if(!rows.length){
+    rows.push({
+      sender_role: "user",
+      sender_name: item.user_name,
+      body: item.body,
+      created_at: item.created_at,
+    });
+    if(item.reply){
+      rows.push({
+        sender_role: "staff",
+        sender_name: item.handled_by_name,
+        body: item.reply,
+        created_at: item.replied_at,
+      });
+    }
+  }
+
+  rows.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  container.innerHTML = rows.map((m) => {
+    // Anything that isn't the user is staff: the column may say
+    // account_administrator, platform_administrator, admin or staff.
+    const fromUser = m.sender_role === "user";
+    const who = m.sender_name || (fromUser ? (item.user_name || "User") : "Support");
+    const attachments = (m.attachments || [])
+      .map((name) => `<span class="attachment-chip">\u{1F4CE} ${escapeHtml(name)}</span>`)
+      .join("");
+
+    return `<div class="msg ${fromUser ? "msg-user" : "msg-staff"}">
+      <div class="msg-meta">
+        <span class="msg-who">${escapeHtml(who)}</span>
+        <span class="msg-when">${escapeHtml(formatDateTime(m.created_at))}</span>
+      </div>
+      <div class="msg-body">${escapeHtml(m.body || "")}</div>
+      ${attachments ? `<div class="msg-files">${attachments}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  // A long thread is most useful at the newest end.
+  container.scrollTop = container.scrollHeight;
+}
+
+/** True when the last message came from the user, i.e. staff owe a reply. */
+function awaitingReply(messages){
+  if(!Array.isArray(messages) || !messages.length) return false;
+  const last = messages[messages.length - 1];
+  return last.sender_role === "user";
+}
+
 // ---- Logout ----
 // Binds every logout control on the page: the hover button in the top bar
 // (.logout-btn) and any other button marked data-action="logout", such as the

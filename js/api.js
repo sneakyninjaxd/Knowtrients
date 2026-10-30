@@ -428,6 +428,26 @@ const Requests = {
     return apiFetch(`/admin/requests/${id}`);
   },
 
+  /**
+   * Every message on a request, oldest first. A request is a conversation:
+   * the first message is what the user wrote, and each reply from either side
+   * is another row in support_messages. Older builds only kept one `reply`
+   * column, so fall back to that when the server doesn't send a thread yet.
+   */
+  async messages(id) {
+    const rows = await apiFetch(`/admin/requests/${id}/messages`);
+    return Array.isArray(rows) ? rows : rows?.messages || [];
+  },
+
+  /** Adds a reply to the conversation, optionally resolving the request. */
+  async sendMessage(id, body, resolve = false) {
+    return apiFetch(`/admin/requests/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ body, resolve }),
+    });
+  },
+
+  /** Older single-reply endpoint, kept until the backend drops it. */
   async reply(id, body, resolve = true) {
     return apiFetch(`/admin/requests/${id}/reply`, {
       method: "POST",
@@ -468,6 +488,20 @@ const Feedback = {
     return apiFetch(`/im/feedback/${id}`);
   },
 
+  /** Every message on a feedback item, oldest first. See Requests.messages. */
+  async messages(id) {
+    const rows = await apiFetch(`/im/feedback/${id}/messages`);
+    return Array.isArray(rows) ? rows : rows?.messages || [];
+  },
+
+  async sendMessage(id, body, resolve = false) {
+    return apiFetch(`/im/feedback/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ body, resolve }),
+    });
+  },
+
+  /** Older single-reply endpoint, kept until the backend drops it. */
   async reply(id, body, resolve = true) {
     return apiFetch(`/im/feedback/${id}/reply`, {
       method: "POST",
