@@ -698,3 +698,16 @@ a.welcome-chip:hover{ background:var(--mint-strong); }
 .chart-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
 .metric-row{ display:flex; gap:18px; flex-wrap:wrap; font-size:.88rem; margin-bottom:14px; }
 .metric-row b{ font-weight:600; }
+
+/* ---- Conversation thread (request / feedback detail) ---- */
+.thread{ display:flex; flex-direction:column; gap:14px; max-height:460px; overflow-y:auto; padding-right:4px; }
+.msg{ border:1px solid var(--panel-line); border-radius:var(--radius-md); padding:14px 16px; background:var(--panel-raised); }
+.msg-staff{ border-color:var(--mint-25); background:var(--mint-10); margin-left:32px; }
+.msg-user{ margin-right:32px; }
+.msg-meta{ display:flex; justify-content:space-between; gap:12px; font-size:.78rem; color:var(--ink-faint); margin-bottom:6px; }
+.msg-who{ font-weight:600; color:var(--ink-dim); }
+.msg-body{ font-size:.92rem; line-height:1.6; white-space:pre-wrap; }
+.msg-files{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.thread-head{ display:flex; align-items:center; gap:10px; }
+.awaiting-chip{ font-size:.75rem; font-weight:600; padding:3px 10px; border-radius:999px;
+  background:rgba(224,178,74,.15); color:var(--warn); border:1px solid rgba(224,178,74,.35); }
