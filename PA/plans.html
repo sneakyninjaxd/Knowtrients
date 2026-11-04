@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subscription Plans — Knowtrients Platform Administrator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="app-topbar">
+  <button class="brand" id="brandTrigger" aria-label="Open menu">
+    <span class="brand-mark">✦</span> Knowtrients
+  </button>
+  <div class="avatar-chip">
+    <a class="welcome-chip" href="my-PAaccount.html" title="My Account">
+      <span class="avatar">👤</span> Welcome, Admin
+    </a>
+    <button class="logout-btn" type="button">Logout</button>
+  </div>
+</header>
+
+<div class="drawer-scrim" id="drawerScrim"></div>
+<nav class="drawer" id="drawer" aria-label="Site navigation">
+  <div class="drawer-section">
+    <a href="dashboard.html"><h2>Home</h2></a>
+  </div>
+  <div class="drawer-section">
+    <a href="analytics.html"><h3>Data Analytics</h3></a>
+    <ul>
+      <li><a href="analytics.html#performance">Performance Metrics</a></li>
+      <li><a href="analytics.html#accuracy">Accuracy Metrics</a></li>
+    </ul>
+  </div>
+  <div class="drawer-section">
+    <a href="plans.html"><h3>Subscription Plans</h3></a>
+  </div>
+  <div class="drawer-section">
+    <a href="feedback.html?filter=All"><h3>Feedback</h3></a>
+    <ul>
+      <li><a href="feedback.html?filter=Unresolved">Feedback Received</a></li>
+      <li><a href="feedback.html?filter=Resolved">Resolved Feedback</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="app-main" id="appMain">
+  <div class="page-head">
+    <h1>Subscription Plans</h1>
+  </div>
+
+  <p class="card-note" style="margin:0 0 18px;">
+    These are the plans shown on the public home page. Changes are saved to the
+    database and appear there straight away.
+  </p>
+
+  <div id="pageError" class="form-error" style="display:none;max-width:720px;"></div>
+
+  <div class="account-stack" style="max-width:720px;">
+
+    <!-- Free plan -->
+    <div class="card">
+      <h2>Free Plan</h2>
+      <div class="field">
+        <label for="freeName">Heading</label>
+        <input class="input" id="freeName">
+      </div>
+      <div class="field">
+        <label for="freeFeatures">Features</label>
+        <textarea class="reply-box" id="freeFeatures" rows="5"
+          placeholder="One feature per line"></textarea>
+        <div class="field-hint">Enter at least one feature.</div>
+      </div>
+      <p class="card-note">One feature per line. The free plan has no price.</p>
+    </div>
+
+    <!-- Premium plan -->
+    <div class="card">
+      <h2>Premium Plan</h2>
+      <div class="field-row">
+        <div class="field">
+          <label for="premiumName">Heading</label>
+          <input class="input" id="premiumName">
+        </div>
+        <div class="field" id="premiumPriceField">
+          <label for="premiumPrice">Price</label>
+          <input class="input" id="premiumPrice" placeholder="$10/month">
+          <div class="field-hint">Enter a price.</div>
+        </div>
+      </div>
+      <div class="field" id="premiumFeaturesField">
+        <label for="premiumFeatures">Features</label>
+        <textarea class="reply-box" id="premiumFeatures" rows="6"
+          placeholder="One feature per line"></textarea>
+        <div class="field-hint">Enter at least one feature.</div>
+      </div>
+      <p class="card-note">Shown on the home page exactly as typed, so write the
+        price the way visitors should read it.</p>
+    </div>
+
+    <!-- Preview of the home page cards -->
+    <div class="card">
+      <h2>Preview</h2>
+      <p class="card-note" style="margin-top:0;">How the plans will look on the home page.</p>
+      <div class="section-grid" id="preview" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="detail-actions">
+      <button class="btn btn-primary" id="saveBtn">Save Changes</button>
+      <button class="btn btn-ghost" id="revertBtn" type="button">Revert</button>
+      <span class="card-note" id="savedNote" style="margin:0 0 0 6px;"></span>
+    </div>
+
+  </div>
+</main>
+
+<script src="../js/api.js"></script>
+<!-- Mock backend: delete the next line to use the real API -->
+<!-- <script src="js/mock-api.js"></script> -->
+<script src="../js/app.js"></script>
+
+<script>
+  requireRole("platform_administrator");
+
+  const $ = (id) => document.getElementById(id);
+  let saved = null;   // what the server last gave us, for Revert
+
+  const linesToList = (text) =>
+    text.split("\n").map((line) => line.trim()).filter(Boolean);
+
+  function fill(plans){
+    $("freeName").value = plans.free.name;
+    $("freeFeatures").value = plans.free.features.join("\n");
+    $("premiumName").value = plans.premium.name;
+    $("premiumPrice").value = plans.premium.price;
+    $("premiumFeatures").value = plans.premium.features.join("\n");
+    $("savedNote").textContent = plans.updated_at
+      ? `Last updated ${formatDateTime(plans.updated_at)}`
+      : "";
+    renderPreview();
+  }
+
+  /** Reads the form, so the preview matches what Save would send. */
+  function current(){
+    return {
+      free: {
+        name: $("freeName").value.trim() || "Free Users",
+        price: "Free",
+        features: linesToList($("freeFeatures").value),
+      },
+      premium: {
+        name: $("premiumName").value.trim() || "Premium Users",
+        price: $("premiumPrice").value.trim(),
+        features: linesToList($("premiumFeatures").value),
+      },
+    };
+  }
+
+  function planCard(plan, showPrice){
+    return `<div class="feature-card">
+      <h4>${escapeHtml(plan.name)}</h4>
+      <ul>${plan.features.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
+      ${showPrice && plan.price ? `<h3 style="color:var(--mint);">${escapeHtml(plan.price)}</h3>` : ""}
+    </div>`;
+  }
+
+  function renderPreview(){
+    const plans = current();
+    $("preview").innerHTML = planCard(plans.free, false) + planCard(plans.premium, true);
+  }
+
+  document.querySelectorAll(".input, .reply-box").forEach((el) => {
+    el.addEventListener("input", () => {
+      markFieldError(el.closest(".field"), false);
+      renderPreview();
+    });
+  });
+
+  $("saveBtn").addEventListener("click", async () => {
+    $("pageError").style.display = "none";
+    const plans = current();
+
+    const checks = [
+      ["premiumPriceField", !plans.premium.price],
+      ["premiumFeaturesField", !plans.premium.features.length],
+    ];
+    checks.forEach(([id, bad]) => markFieldError($(id), bad));
+    if (!plans.free.features.length) {
+      $("pageError").textContent = "The free plan needs at least one feature.";
+      $("pageError").style.display = "block";
+      return;
+    }
+    if (checks.some(([, bad]) => bad)) return;
+
+    const btn = $("saveBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving\u2026";
+
+    try {
+      saved = await Plans.update(plans);
+      fill(saved);
+      showToast("Subscription plans updated.");
+    } catch (err) {
+      $("pageError").textContent = err.message;
+      $("pageError").style.display = "block";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Save Changes";
+    }
+  });
+
+  // Puts back whatever is currently saved, for a change thought better of.
+  $("revertBtn").addEventListener("click", () => {
+    if (saved) fill(saved);
+  });
+
+  async function load(){
+    try {
+      saved = await Plans.get();
+      fill(saved);
+    } catch (err) {
+      $("pageError").textContent = err.message;
+      $("pageError").style.display = "block";
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

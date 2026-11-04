@@ -109,11 +109,14 @@
     <h2>A closer look, coming soon</h2>
     <p style="max-width:56ch;">Screens and a walkthrough of the mobile app will be added to this section.</p>
     <h3>Subscription Plans</h3>
+    <!-- Filled from the API so Platform Administrators can edit the plans.
+         What's written here shows until that loads, and stays if it fails. -->
+    <div id="planCards">
       <div class="feature-card">
         <h4>Free Users</h4>
         <ul>
-          <li>3 recommendation per day</li>
-          <li>View Progress for the last 7 days</li>
+          <li>3 recommendations per day</li>
+          <li>View progress for the last 7 days</li>
         </ul>
       </div>
       </br>
@@ -121,16 +124,43 @@
         <h4>Premium Users</h4>
         <ul>
           <li>Unlimited recommendations</li>
-          <li>View Full Progress History</li>
-          <li>Generate Health Reports</li>
+          <li>View full progress history</li>
+          <li>Generate health reports</li>
         </ul>
         <h3 style="color:aquamarine">$10/month</h3>
       </div>
+    </div>
   </section>
 </main>
 
 <div class="footer-note">© 2026 Knowtrients. This site is a work in progress.</div>
 
+<script src="js/api.js"></script>
+<!-- Mock backend: delete the next line to use the real API -->
+<script src="js/mock-api.js"></script>
 <script src="js/app.js"></script>
+
+<script>
+  // The plans come from the database so a Platform Administrator can change
+  // them without anyone editing this page. If the request fails, the markup
+  // above stays on screen rather than leaving an empty section.
+  (async () => {
+    function planCard(plan, showPrice){
+      return `<div class="feature-card">
+        <h4>${escapeHtml(plan.name)}</h4>
+        <ul>${plan.features.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
+        ${showPrice && plan.price ? `<h3 style="color:aquamarine">${escapeHtml(plan.price)}</h3>` : ""}
+      </div>`;
+    }
+
+    try {
+      const plans = await Plans.get();
+      document.getElementById("planCards").innerHTML =
+        planCard(plans.free, false) + "</br>" + planCard(plans.premium, true);
+    } catch {
+      /* keep the built-in copy */
+    }
+  })();
+</script>
 </body>
 </html>

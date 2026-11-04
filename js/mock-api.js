@@ -30,7 +30,7 @@
 (function () {
   // Bumped when the seed shape changes (here: the role rename), so an old
   // copy in the browser is replaced instead of breaking every page.
-  const STORE_KEY = "knowtrients_mock_db_v5";
+  const STORE_KEY = "knowtrients_mock_db_v6";
   const LATENCY_MS = 300; // lets you see loading states
 
   // Labels come from api.js so the mock and the pages always agree.
@@ -77,18 +77,22 @@
         activity_level: "Moderately active", goals: ["Maintain weight", "Improve sleep"],
         dietary_preferences: ["Vegetarian"],
         food_log_count: 112, recommendation_count: 38, last_active: at(9, 21, 5),
+        subscription_plan: "premium", subscription_renews_at: at(-18, 0, 0),
       }),
       appUser(8, "U021", "Daniel", "Tan", "danieltan@gmail.com", true, 30, {
         onboarding_complete: true, age: 34, gender: "Male", height_cm: 175, weight_kg: 82,
         activity_level: "Lightly active", goals: ["Lose weight"],
         dietary_preferences: ["Low sugar", "Halal"],
         food_log_count: 64, recommendation_count: 21, last_active: at(0, 8, 12),
+        subscription_plan: "free",
       }),
       appUser(9, "U022", "Farah", "Yusof", "farahyusof@gmail.com", true, 70, {
         onboarding_complete: true, age: 41, gender: "Female", height_cm: 158, weight_kg: 66,
         activity_level: "Sedentary", goals: ["Lower sodium", "Lose weight"],
         dietary_preferences: ["Halal"],
         food_log_count: 203, recommendation_count: 77, last_active: at(1, 19, 40),
+        // Lapsed: was premium, didn't renew.
+        subscription_plan: "free", subscription_ended_at: at(5, 0, 0),
       }),
       appUser(10, "U023", "Gopal", "Reddy", "gopalreddy@gmail.com", true, 20, {
         onboarding_complete: true, age: 23, gender: "Male", height_cm: 180, weight_kg: 70,
@@ -228,8 +232,32 @@
         created_at: at(2, 18, 40) },
     ];
 
+    // What the marketing page shows, editable by Platform Administrators.
+    const plans = {
+      free: {
+        name: "Free Users",
+        price: "Free",
+        features: [
+          "3 recommendations per day",
+          "View progress for the last 7 days",
+        ],
+      },
+      premium: {
+        name: "Premium Users",
+        price: "$10/month",
+        features: [
+          "Unlimited recommendations",
+          "View full progress history",
+          "Generate health reports",
+        ],
+      },
+      updated_at: at(20, 10, 0),
+    };
+
     return {
-      accounts, requests, feedback, messages, analytics,
+      accounts, requests, feedback, messages, analytics, plans,
+      // Codes issued by the password reset flow, keyed by email.
+      reset_codes: {},
       stats: { logs_today: 14, recommendations_today: 6 },
     };
   }
@@ -275,6 +303,10 @@
     return {
       ...accountSummary(a),
       onboarding_complete: Boolean(a.onboarding_complete),
+      // "free" or "premium"; only meaningful for app users.
+      subscription_plan: a.role === "user" ? (a.subscription_plan || "free") : null,
+      subscription_renews_at: a.subscription_renews_at || null,
+      subscription_ended_at: a.subscription_ended_at || null,
       age: a.age ?? null,
       gender: a.gender ?? null,
       height_cm: a.height_cm ?? null,
@@ -386,7 +418,7 @@
   // App performance, AI accuracy and user feedback are Platform Administrator work.
   function requireITManager(me) {
     if (!me || me.role !== "platform_administrator") {
-      fail(403, "Only Platform Administrators can access analytics and feedback.");
+      fail(403, "Only Platform Administrators can access analytics, feedback and plans.");
     }
   }
 
@@ -536,6 +568,84 @@
         save(db);
         return feedbackShape(item, db);
       }
+    }
+
+    // GET /plans  (public: the marketing page reads this)
+    if (method === "GET" && route === "/plans") {
+      return db.plans;
+    }
+
+    // PUT /im/plans  (Platform Administrators edit the plans)
+    if (method === "PUT" && route === "/im/plans") {
+      const clean = (plan, fallback) => ({
+        name: (plan?.name || fallback.name).trim(),
+        price: (plan?.price || fallback.price).trim(),
+        features: (plan?.features || [])
+          .map((f) => String(f).trim())
+          .filter(Boolean),
+      });
+      if (!body.free?.features?.length || !body.premium?.features?.length) {
+        fail(422, "Each plan needs at least one feature.");
+      }
+      db.plans = {
+        free: { ...clean(body.free, db.plans.free), price: "Free" },
+        premium: clean(body.premium, db.plans.premium),
+        updated_at: new Date().toISOString(),
+      };
+      save(db);
+      return db.plans;
+    }
+
+    // ---- Password reset -------------------------------------------------
+    // Step 1: ask for a code. Always reports success, so the page can't be
+    // used to discover which emails have accounts.
+    if (method === "POST" && route === "/password-reset/request") {
+      const email = (body.email || "").trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        fail(422, "Enter a valid email address.");
+      }
+      const account = db.accounts.find((a) => a.email.toLowerCase() === email);
+      if (account) {
+        db.reset_codes = db.reset_codes || {};
+        // A real backend emails this. The mock accepts any six digits, so the
+        // value here is only a placeholder.
+        db.reset_codes[email] = { code: "000000", created_at: new Date().toISOString() };
+        save(db);
+      }
+      return { sent: true };
+    }
+
+    // Step 2: check the code. The mock takes any six digits.
+    if (method === "POST" && route === "/password-reset/verify") {
+      const email = (body.email || "").trim().toLowerCase();
+      const code = String(body.code || "").trim();
+      if (!/^\d{6}$/.test(code)) fail(422, "Enter the 6-digit code from your email.");
+      const account = db.accounts.find((a) => a.email.toLowerCase() === email);
+      if (!account) fail(400, "That code has expired. Please request a new one.");
+      // Administrators pick their admin type on the first page; the account
+      // has to match, so a code can't be used against the other type.
+      if (body.role && account.role !== body.role) {
+        // "an Account Administrator" / "a Platform Administrator"
+        const label = roleLabel(body.role);
+        const article = /^[AEIOU]/.test(label) ? "an" : "a";
+        fail(403, `This email is not ${article} ${label} account.`);
+      }
+      return { token: `mock-reset-${account.id}`, email: account.email };
+    }
+
+    // Step 3: set the new password.
+    if (method === "POST" && route === "/password-reset/complete") {
+      const token = String(body.token || "");
+      const id = Number(token.replace("mock-reset-", ""));
+      const account = db.accounts.find((a) => a.id === id);
+      if (!account) fail(400, "This reset link has expired. Please start again.");
+      if (!body.new_password || body.new_password.length < 8) {
+        fail(422, "Password must be at least 8 characters.");
+      }
+      account.password = body.new_password;
+      delete (db.reset_codes || {})[account.email.toLowerCase()];
+      save(db);
+      return { reset: true };
     }
 
     // POST /register  (public app-user sign-up from register.html)
