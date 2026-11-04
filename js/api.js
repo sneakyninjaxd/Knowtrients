@@ -329,6 +329,39 @@ const Auth = {
     return data.user;
   },
 
+  /**
+   * Password reset, in three steps, one per page:
+   *   1. requestReset(email)         — server emails a 6-digit code
+   *   2. verifyCode(email, code)     — returns a short-lived reset token
+   *   3. resetPassword(token, pass)  — sets the new password
+   * Step 1 always reports success, even for an unknown email, so the page
+   * can't be used to find out which addresses have accounts.
+   */
+  async requestReset(email, role = null) {
+    return apiFetch("/password-reset/request", {
+      method: "POST",
+      body: JSON.stringify(role ? { email, role } : { email }),
+    });
+  },
+
+  /**
+   * `role` is sent for administrators, who pick their admin type alongside
+   * the email, so a code can't be used against an account of the other type.
+   */
+  async verifyCode(email, code, role = null) {
+    return apiFetch("/password-reset/verify", {
+      method: "POST",
+      body: JSON.stringify(role ? { email, code, role } : { email, code }),
+    });
+  },
+
+  async resetPassword(token, newPassword) {
+    return apiFetch("/password-reset/complete", {
+      method: "POST",
+      body: JSON.stringify({ token, new_password: newPassword }),
+    });
+  },
+
   logout() {
     Session.clear();
   },
@@ -544,6 +577,23 @@ function feedbackLabel(slugOrItem) {
   }
   return FEEDBACK_LABELS[slugOrItem] || "Other";
 }
+
+/* ---- Subscription plans -------------------------------- */
+
+const Plans = {
+  /** Public: what the marketing page shows. */
+  async get() {
+    return apiFetch("/plans");
+  },
+
+  /** Platform Administrators only. */
+  async update(plans) {
+    return apiFetch("/im/plans", {
+      method: "PUT",
+      body: JSON.stringify(plans),
+    });
+  },
+};
 
 /* ---- Dashboard ------------------------------------------ */
 

@@ -131,6 +131,7 @@
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: delete the next line to use the real API -->
+<!-- <script src="js/mock-api.js"></script> -->
 <script src="../js/app.js"></script>
 
 <script>
@@ -167,6 +168,21 @@
     </div>`;
   }
 
+  /** "Premium, renews 12 November 2026" / "Free" / "Free (ended 25 October 2026)" */
+  function subscriptionText(){
+    const premium = account.subscription_plan === "premium";
+    if (premium) {
+      return account.subscription_renews_at
+        ? `Premium \u2014 renews ${formatDate(account.subscription_renews_at)}`
+        : "Premium";
+    }
+    // A past end date means they had premium and let it lapse, which is
+    // worth seeing when someone asks about billing.
+    return account.subscription_ended_at
+      ? `Free \u2014 premium ended ${formatDate(account.subscription_ended_at)}`
+      : "Free";
+  }
+
   function chips(values){
     if(!values || !values.length) return "—";
     return values.map(v => `<span class="tag-chip">${escapeHtml(v)}</span>`).join("");
@@ -190,6 +206,7 @@
       kv("Joined", formatDate(account.created_at)),
       // Onboarding is an app flow, so it's meaningless for staff.
       isAppUser ? kv("Onboarding", account.onboarding_complete ? "Complete" : "Incomplete") : "",
+      isAppUser ? kv("Subscription", subscriptionText()) : "",
     ].join("");
 
     $("appUserSections").style.display = isAppUser ? "block" : "none";
