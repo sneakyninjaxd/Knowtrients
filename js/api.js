@@ -193,6 +193,15 @@ class ApiError extends Error {
   }
 }
 
+/**
+ * True when the server doesn't have the route at all (FastAPI answers 404
+ * "Not Found" or 405 for a route it doesn't know). Used to fall back to an
+ * older endpoint while the backend catches up with the website.
+ */
+function isMissingRoute(err) {
+  return err instanceof ApiError && (err.status === 404 || err.status === 405);
+}
+
 async function apiFetch(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (Session.token) headers.Authorization = `Bearer ${Session.token}`;
@@ -468,16 +477,28 @@ const Requests = {
    * column, so fall back to that when the server doesn't send a thread yet.
    */
   async messages(id) {
-    const rows = await apiFetch(`/admin/requests/${id}/messages`);
-    return Array.isArray(rows) ? rows : rows?.messages || [];
+    try {
+      const rows = await apiFetch(`/admin/requests/${id}/messages`);
+      return Array.isArray(rows) ? rows : rows?.messages || [];
+    } catch (err) {
+      // No thread route yet: an empty list makes renderThread() show the
+      // request's own body and reply instead.
+      if (isMissingRoute(err)) return [];
+      throw err;
+    }
   },
 
   /** Adds a reply to the conversation, optionally resolving the request. */
   async sendMessage(id, body, resolve = false) {
-    return apiFetch(`/admin/requests/${id}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ body, resolve }),
-    });
+    try {
+      return await apiFetch(`/admin/requests/${id}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ body, resolve }),
+      });
+    } catch (err) {
+      if (isMissingRoute(err)) return this.reply(id, body, resolve);
+      throw err;
+    }
   },
 
   /** Older single-reply endpoint, kept until the backend drops it. */
@@ -518,20 +539,41 @@ const Feedback = {
   },
 
   async get(id) {
-    return apiFetch(`/im/feedback/${id}`);
+    try {
+      return await apiFetch(`/im/feedback/${id}`);
+    } catch (err) {
+      // If the single-item route is missing, the queue's own list endpoint
+      // already has every field the detail page shows, so find it there.
+      if (!isMissingRoute(err)) throw err;
+      const rows = await this.list();
+      const list = Array.isArray(rows) ? rows : rows?.items || rows?.feedback || [];
+      const found = list.find((f) => String(f.id) === String(id));
+      if (!found) throw new ApiError("This feedback could not be found. It may have been deleted.", 404);
+      return found;
+    }
   },
 
   /** Every message on a feedback item, oldest first. See Requests.messages. */
   async messages(id) {
-    const rows = await apiFetch(`/im/feedback/${id}/messages`);
-    return Array.isArray(rows) ? rows : rows?.messages || [];
+    try {
+      const rows = await apiFetch(`/im/feedback/${id}/messages`);
+      return Array.isArray(rows) ? rows : rows?.messages || [];
+    } catch (err) {
+      if (isMissingRoute(err)) return [];
+      throw err;
+    }
   },
 
   async sendMessage(id, body, resolve = false) {
-    return apiFetch(`/im/feedback/${id}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ body, resolve }),
-    });
+    try {
+      return await apiFetch(`/im/feedback/${id}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ body, resolve }),
+      });
+    } catch (err) {
+      if (isMissingRoute(err)) return this.reply(id, body, resolve);
+      throw err;
+    }
   },
 
   /** Older single-reply endpoint, kept until the backend drops it. */
