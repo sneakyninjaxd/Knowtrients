@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowtrients — Know your nutrients, know your health</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="brand" id="brandTrigger" aria-label="Open menu">
+    <span class="brand-mark">✦</span> Knowtrients
+  </button>
+  <div class="topbar-right">
+    <a href="FYP-26-S3-17.html">FYP-26-S3-17</a>
+    <a href="#about">About Us</a>
+    <a href="#preview">App Preview</a>
+    <a class="topbar-link" href="register.html">Register</a>
+    <a class="pill-login" href="login.html">Login</a>
+  </div>
+</header>
+
+<div class="drawer-scrim" id="drawerScrim"></div>
+<nav class="drawer" id="drawer" aria-label="Site navigation">
+  <div class="drawer-section">
+    <a href="index.html"><h3>Home</h3></a>
+    <ul>
+      <li><a href="#about">About Us</a></li>
+      <li><a href="#register">Register</a></li>
+      <li><a href="#preview">App Preview</a></li>
+    </ul>
+  </div>
+  <div class="drawer-section">
+    <a href="FYP-26-S3-17.html"><h3>FYP-26-S3-17</h3></a>
+    <ul>
+      <li><a href="FYP-26-S3-17.html#Submission-Drive" >Submission Drive</a></li>
+      <li><a href="FYP-26-S3-17.html#github">Github</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+  <section class="hero">
+    <div>
+      <h1>Know your nutrients,<br>know your health</h1>
+      <p class="lede">Knowtrients turns every meal into a clear picture of what's actually going into your body — so you can make small, informed choices that add up.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#register">Get the app</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="about">
+    <div class="eyebrow">About us</div>
+    <h2>Hello! We are Knowtrients!</h2>
+    <p style="max-width:60ch;">Knowtrients started as a simple question: why is it so hard to get an explanation for recommendations to our daily activities? Our team decided to make this easy for you to Track, Recommend, and Understand your daily lifestyle.</p>
+    <div class="section-grid">
+      <div class="feature-card">
+        <h4>Track what matters</h4>
+        <p>Knowtrients is a one-stop solution to record your activities and monitor your progress towards your goals.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Get recommendations</h4>
+        <p>Get personalized recommendations based on your activity, sleep & dietary needs and goals.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Understand what your progress</h4>
+        <p>Don't just blindly follow recommendations — understand the impact of your choices.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="register">
+    <div class="eyebrow">Register</div>
+    <h2>Get Started with Knowtrients!</h2>
+    <p style="max-width:56ch;">Just 3 easy steps!</p>  
+    <div class="hero-cta">
+      <a class="btn btn-outline" href="register.html" title="Register">Register</a>
+    </div>
+    <div class="section-grid">
+      <div class="feature-card">
+        <a href="register.html">
+        <h4>1. Register</h4>
+        <p>For security reasons, registration is required for all our users. 
+      Click here to register now!</p>
+        </a>
+      </div>
+      <div class="feature-card">
+        <a href="login.html">
+          <h4>2. Login</h4>
+          <p>Login to your account to download the application. Click here to login!</p>
+        </a>
+      </div>
+      <div class="feature-card">
+        <a href="login.html">
+          <h4>3. Start your Knowtrients journey</h4>
+          <p>Download the app and start your Knowtrients journey today!</p>
+        </a>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="section" id="preview">
+    <div class="eyebrow">App preview</div>
+    <h2>A closer look at the app</h2>
+    <p style="max-width:56ch;">A walkthrough of the mobile app, from signing in
+      to your first recommendation.</p>
+    <!-- video -->
+    <video width="100%" autoplay muted loop playsinline preload="auto" controls>
+      <source src="media/Knowtrients_Mobile_App_Vid.mp4" type="video/mp4">
+      Your browser can't play this video.
+    </video>
+
+    <h3>Subscription Plans</h3>
+    <div id="planCards">
+      <div class="feature-card">
+        <h4>Free Users</h4>
+        <ul>
+          <li>3 recommendations per day</li>
+          <li>View progress for the last 7 days</li>
+        </ul>
+      </div>
+      </br>
+      <div class="feature-card">
+        <h4>Premium Users</h4>
+        <ul>
+          <li>Unlimited recommendations</li>
+          <li>View full progress history</li>
+          <li>Generate health reports</li>
+        </ul>
+        <h3 style="color:aquamarine">$10/month</h3>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="footer-note">© 2026 Knowtrients. This site is a work in progress.</div>
+
+<script src="js/api.js"></script>
+<!-- Mock backend: comment the next line to use the real API -->
+<!-- <script src="js/mock-api.js"></script> -->
+<script src="js/app.js"></script>
+
+<script>
+  // The plans come from the database so a Platform Administrator can change
+  // them without anyone editing this page. If the request fails, the markup
+  // above stays on screen rather than leaving an empty section.
+  (async () => {
+    function planCard(plan, showPrice){
+      return `<div class="feature-card">
+        <h4>${escapeHtml(plan.name)}</h4>
+        <ul>${plan.features.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
+        ${showPrice && plan.price ? `<h3 style="color:aquamarine">${escapeHtml(plan.price)}</h3>` : ""}
+      </div>`;
+    }
+
+    try {
+      const plans = await Plans.get();
+      document.getElementById("planCards").innerHTML =
+        planCard(plans.free, false) + "</br>" + planCard(plans.premium, true);
+    } catch {
+      /* keep the built-in copy */
+    }
+  })();
+</script>
+</body>
+</html>
