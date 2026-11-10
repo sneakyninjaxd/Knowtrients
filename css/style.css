@@ -711,3 +711,10 @@ a.welcome-chip:hover{ background:var(--mint-strong); }
 .thread-head{ display:flex; align-items:center; gap:10px; }
 .awaiting-chip{ font-size:.75rem; font-weight:600; padding:3px 10px; border-radius:999px;
   background:rgba(224,178,74,.15); color:var(--warn); border:1px solid rgba(224,178,74,.35); }
+
+/* ---- App preview video ---- */
+.app-video{
+  width:100%; max-width:860px; margin:18px 0 32px;
+  display:block; border-radius:var(--radius-md);
+  border:1px solid var(--panel-line); background:#000;
+}

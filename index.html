@@ -106,8 +106,21 @@
 
   <section class="section" id="preview">
     <div class="eyebrow">App preview</div>
-    <h2>A closer look, coming soon</h2>
-    <p style="max-width:56ch;">Screens and a walkthrough of the mobile app will be added to this section.</p>
+    <h2>A closer look at the app</h2>
+    <p style="max-width:56ch;">A walkthrough of the mobile app, from signing in
+      to your first recommendation.</p>
+
+    <!-- The file lives in /media at the site root. "controls" gives the usual
+         play and volume buttons; it doesn't autoplay, so nobody arrives to
+         unexpected sound. The poster frame is optional — add one and the
+         browser shows it before play is pressed. -->
+    <video class="app-video" controls preload="metadata"
+           poster="media/app-preview-poster.jpg">
+      <source src="media/Knowtrients_Mobile_App_Vid.mp4" type="video/mp4">
+      Your browser can't play this video.
+      <a href="media/Knowtrients_Mobile_App_Vid.mp4">Download it instead</a>.
+    </video>
+
     <h3>Subscription Plans</h3>
     <!-- Filled from the API so Platform Administrators can edit the plans.
          What's written here shows until that loads, and stays if it fails. -->
