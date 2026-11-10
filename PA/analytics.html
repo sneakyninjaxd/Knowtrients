@@ -72,7 +72,7 @@
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: comment the next line to use the real API -->
-<!-- <script src="js/mock-api.js"></script> -->
+<!-- <script src="../js/mock-api.js"></script> -->
 <script src="../js/chart.js"></script>
 <script src="../js/app.js"></script>
 
@@ -93,8 +93,8 @@
       const a = await Analytics.summary();
   // Percentages may be null — no ratings, or no traffic yet — so show a dash
   // rather than "null%".
-  const pct = (v) => (v === null || v === undefined ? "\u2014" : `${v}%`);
-  const num = (v) => (v === null || v === undefined ? "\u2014" : v);
+  const pct = (v) => (v === null || v === undefined ? "—" : `${v}%`);
+  const num = (v) => (v === null || v === undefined ? "—" : v);
 
 
       // Last seven days pooled: a single day is usually empty unless the app
@@ -132,7 +132,7 @@
         // A server can't record its own downtime, so this is the share of
         // requests that didn't fail with a server error.
         tile(pct(a.request_success_pct ?? a.uptime_pct), "Request success rate (30 days)"),
-        tile(a.avg_response_ms == null ? "\u2014" : `${a.avg_response_ms} ms`, "Average response (7 days)"),
+        tile(a.avg_response_ms == null ? "—" : `${a.avg_response_ms} ms`, "Average response (7 days)"),
         tile(num(a.open_feedback), "Pending Bug Reports"),
       ].join("");
 

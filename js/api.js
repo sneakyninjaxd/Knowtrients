@@ -331,11 +331,11 @@ const Auth = {
 
   /**
    * Password reset, in three steps, one per page:
-   *   1. requestReset(email)         — server emails a 6-digit code
+   *   1. requestReset(email, role)   — checks the address and emails a code
    *   2. verifyCode(email, code)     — returns a short-lived reset token
    *   3. resetPassword(token, pass)  — sets the new password
-   * Step 1 always reports success, even for an unknown email, so the page
-   * can't be used to find out which addresses have accounts.
+   * Step 1 fails with 404 when no account has that email, so a typo is
+   * caught there rather than at the code screen.
    */
   async requestReset(email, role = null) {
     return apiFetch("/password-reset/request", {

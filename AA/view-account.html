@@ -130,8 +130,8 @@
 </div>
 
 <script src="../js/api.js"></script>
-<!-- Mock backend: delete the next line to use the real API -->
-<!-- <script src="js/mock-api.js"></script> -->
+<!-- Mock backend: comment the next line to use the real API -->
+<!-- <script src="../js/mock-api.js"></script> -->
 <script src="../js/app.js"></script>
 
 <script>
@@ -173,13 +173,13 @@
     const premium = account.subscription_plan === "premium";
     if (premium) {
       return account.subscription_renews_at
-        ? `Premium \u2014 renews ${formatDate(account.subscription_renews_at)}`
+        ? `Premium — renews ${formatDate(account.subscription_renews_at)}`
         : "Premium";
     }
     // A past end date means they had premium and let it lapse, which is
     // worth seeing when someone asks about billing.
     return account.subscription_ended_at
-      ? `Free \u2014 premium ended ${formatDate(account.subscription_ended_at)}`
+      ? `Free — premium ended ${formatDate(account.subscription_ended_at)}`
       : "Free";
   }
 

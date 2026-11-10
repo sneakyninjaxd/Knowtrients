@@ -41,7 +41,7 @@
 </main>
 
 <script src="js/api.js"></script>
-<!-- Mock backend: delete the next line to use the real API -->
+<!-- Mock backend: comment the next line to use the real API -->
 <!-- <script src="js/mock-api.js"></script> -->
 <script src="js/app.js"></script>
 <script>
@@ -90,7 +90,7 @@
 
     const btn = $("submitBtn");
     btn.disabled = true;
-    btn.textContent = "Checking\u2026";
+    btn.textContent = "Checking…";
 
     try {
       const res = await Auth.verifyCode(state.email, code, state.role || null);
