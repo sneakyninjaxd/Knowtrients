@@ -597,21 +597,29 @@
     }
 
     // ---- Password reset -------------------------------------------------
-    // Step 1: ask for a code. Always reports success, so the page can't be
-    // used to discover which emails have accounts.
+    // Step 1: ask for a code. The address has to exist, so somebody who
+    // mistypes their email is told here rather than at the code screen.
     if (method === "POST" && route === "/password-reset/request") {
       const email = (body.email || "").trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         fail(422, "Enter a valid email address.");
       }
       const account = db.accounts.find((a) => a.email.toLowerCase() === email);
-      if (account) {
-        db.reset_codes = db.reset_codes || {};
-        // A real backend emails this. The mock accepts any six digits, so the
-        // value here is only a placeholder.
-        db.reset_codes[email] = { code: "000000", created_at: new Date().toISOString() };
-        save(db);
+      if (!account) {
+        fail(404, "No account found with that email address. Please check it and try again.");
       }
+      // Administrators pick their type too, so a mismatch is caught here.
+      if (body.role && account.role !== body.role) {
+        const label = roleLabel(body.role);
+        const article = /^[AEIOU]/.test(label) ? "an" : "a";
+        fail(403, `This email is not ${article} ${label} account.`);
+      }
+
+      db.reset_codes = db.reset_codes || {};
+      // A real backend emails this. The mock accepts any six digits, so the
+      // value here is only a placeholder.
+      db.reset_codes[email] = { code: "000000", created_at: new Date().toISOString() };
+      save(db);
       return { sent: true };
     }
 
@@ -621,7 +629,7 @@
       const code = String(body.code || "").trim();
       if (!/^\d{6}$/.test(code)) fail(422, "Enter the 6-digit code from your email.");
       const account = db.accounts.find((a) => a.email.toLowerCase() === email);
-      if (!account) fail(400, "That code has expired. Please request a new one.");
+      if (!account) fail(404, "No account found with that email address.");
       // Administrators pick their admin type on the first page; the account
       // has to match, so a code can't be used against the other type.
       if (body.role && account.role !== body.role) {

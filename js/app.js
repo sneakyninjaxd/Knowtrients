@@ -74,7 +74,7 @@ function initWelcomeChip(){
   chip.innerHTML = "";
   const avatar = document.createElement("span");
   avatar.className = "avatar";
-  avatar.textContent = "\u{1F464}";
+  avatar.textContent = "👤";
   chip.append(avatar, ` Welcome, ${user.first_name}`);
 }
 
@@ -134,7 +134,7 @@ function renderThread(container, item, messages){
     const fromUser = m.sender_role === "user";
     const who = m.sender_name || (fromUser ? (item.user_name || "User") : "Support");
     const attachments = (m.attachments || [])
-      .map((name) => `<span class="attachment-chip">\u{1F4CE} ${escapeHtml(name)}</span>`)
+      .map((name) => `<span class="attachment-chip">📎 ${escapeHtml(name)}</span>`)
       .join("");
 
     return `<div class="msg ${fromUser ? "msg-user" : "msg-staff"}">

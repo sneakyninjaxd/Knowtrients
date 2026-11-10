@@ -63,7 +63,7 @@
           <a class="btn btn-ghost btn-sm" href="analytics.html">Full analytics</a>
         </div>
         <div class="metric-row" id="accuracyRow"></div>
-        <div id="accuracyChart"><div class="empty-hint">Loading chart\u2026</div></div>
+        <div id="accuracyChart"><div class="empty-hint">Loading chart…</div></div>
       </div>
 
       <div class="card">
@@ -84,7 +84,7 @@
 
 <script src="../js/api.js"></script>
 <!-- Mock backend: comment the next line to use the real API -->
-<!-- <script src="js/mock-api.js"></script> -->
+<!-- <script src="../js/mock-api.js"></script> -->
 <script src="../js/chart.js"></script>
 <script src="../js/app.js"></script>
 <script>
@@ -100,13 +100,13 @@
   }
 
   async function loadAnalytics(){
-    $("statGrid").innerHTML = `<div class="empty-hint">Loading\u2026</div>`;
+    $("statGrid").innerHTML = `<div class="empty-hint">Loading…</div>`;
     try {
       const a = await Analytics.summary();
   // Percentages may be null — no ratings, or no traffic yet — so show a dash
   // rather than "null%".
-  const pct = (v) => (v === null || v === undefined ? "\u2014" : `${v}%`);
-  const num = (v) => (v === null || v === undefined ? "\u2014" : v);
+  const pct = (v) => (v === null || v === undefined ? "—" : `${v}%`);
+  const num = (v) => (v === null || v === undefined ? "—" : v);
 
 
       $("statGrid").innerHTML = [
@@ -122,7 +122,7 @@
         ["Sleep", recent.sleep, "#4cc9e8"],
       ].map(([name, value, colour]) =>
         `<span><span class="chart-dot" style="background:${colour}"></span>
-          ${name} \u2013 <b style="color:${colour}">${pct(value)}</b></span>`).join("");
+          ${name} – <b style="color:${colour}">${pct(value)}</b></span>`).join("");
 
       lineChart($("accuracyChart"), {
         labels: a.labels,
@@ -153,7 +153,7 @@
   }
 
   async function loadFeedback(){
-    renderMessage($("feedbackList"), "Loading feedback\u2026");
+    renderMessage($("feedbackList"), "Loading feedback…");
     try {
       const rows = await Feedback.list({ status: "unresolved" });
       if (!rows.length) {
@@ -170,15 +170,15 @@
           window.location.href = "feedback-detail.html?id=" + f.id);
         el.innerHTML = `
           <div class="req-top">
-            <span class="req-avatar">\u{1F464}</span>
+            <span class="req-avatar">👤</span>
             <span class="req-name">${escapeHtml(f.user_name || "Unknown")}</span>
             <span class="req-time">${escapeHtml(formatDateTime(f.created_at))}</span>
           </div>
           <div class="req-subject">${escapeHtml(f.subject)}</div>
-          <div class="req-preview">${escapeHtml(f.body.slice(0, 90))}${f.body.length > 90 ? "\u2026" : ""}</div>
+          <div class="req-preview">${escapeHtml(f.body.slice(0, 90))}${f.body.length > 90 ? "…" : ""}</div>
           <div class="req-actions">
             <span class="attachment-chip">${escapeHtml(feedbackLabel(f.category))}</span>
-            <span class="req-arrow">\u203A</span>
+            <span class="req-arrow">›</span>
           </div>
         `;
         $("feedbackList").appendChild(el);
