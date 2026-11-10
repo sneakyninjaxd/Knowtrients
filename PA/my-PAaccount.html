@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Subscription Plans — Knowtrients Platform Administrator</title>
+<title>My Account — Knowtrients Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
@@ -48,69 +48,81 @@
 
 <main class="app-main" id="appMain">
   <div class="page-head">
-    <h1>Subscription Plans</h1>
+    <h1>My Account</h1>
   </div>
 
-  <p class="card-note" style="margin:0 0 18px;">
-    These are the plans shown on the public home page. Changes are saved to the
-    database and appear there straight away.
-  </p>
+  <div id="pageError" class="form-error" style="display:none;max-width:620px;"></div>
 
-  <div id="pageError" class="form-error" style="display:none;max-width:720px;"></div>
+  <div class="account-stack">
 
-  <div class="account-stack" style="max-width:720px;">
-
-    <!-- Free plan -->
+    <!-- Read-only details -->
     <div class="card">
-      <h2>Free Plan</h2>
-      <div class="field">
-        <label for="freeName">Heading</label>
-        <input class="input" id="freeName">
+      <h2>Account</h2>
+      <div class="kv-grid" id="accountGrid">
+        <div class="empty-hint" style="padding:10px 0;">Loading…</div>
       </div>
-      <div class="field">
-        <label for="freeFeatures">Features</label>
-        <textarea class="reply-box" id="freeFeatures" rows="5"
-          placeholder="One feature per line"></textarea>
-        <div class="field-hint">Enter at least one feature.</div>
-      </div>
-      <p class="card-note">One feature per line. The free plan has no price.</p>
+      <p class="card-note">Your User ID, email and user type can't be changed from this page.</p>
     </div>
 
-    <!-- Premium plan -->
-    <div class="card">
-      <h2>Premium Plan</h2>
+    <!-- Name -->
+    <form class="card" id="nameForm" novalidate>
+      <h2>Name</h2>
+      <div id="nameError" class="form-error" style="display:none;"></div>
+
       <div class="field-row">
-        <div class="field">
-          <label for="premiumName">Heading</label>
-          <input class="input" id="premiumName">
+        <div class="field" id="firstNameField">
+          <label for="firstName">First name</label>
+          <input class="input" id="firstName" autocomplete="given-name" required>
+          <div class="field-hint">Enter a first name.</div>
         </div>
-        <div class="field" id="premiumPriceField">
-          <label for="premiumPrice">Price</label>
-          <input class="input" id="premiumPrice" placeholder="$10/month">
-          <div class="field-hint">Enter a price.</div>
+        <div class="field" id="lastNameField">
+          <label for="lastName">Last name</label>
+          <input class="input" id="lastName" autocomplete="family-name" required>
+          <div class="field-hint">Enter a last name.</div>
         </div>
       </div>
-      <div class="field" id="premiumFeaturesField">
-        <label for="premiumFeatures">Features</label>
-        <textarea class="reply-box" id="premiumFeatures" rows="6"
-          placeholder="One feature per line"></textarea>
-        <div class="field-hint">Enter at least one feature.</div>
-      </div>
-      <p class="card-note">Shown on the home page exactly as typed, so write the
-        price the way visitors should read it.</p>
-    </div>
 
-    <!-- Preview of the home page cards -->
+      <div class="detail-actions" style="margin-top:4px;">
+        <button type="submit" class="btn btn-primary" id="saveNameBtn" disabled>Save Changes</button>
+      </div>
+    </form>
+
+    <!-- Password -->
+    <form class="card" id="passwordForm" novalidate>
+      <h2>Password</h2>
+      <div id="passwordError" class="form-error" style="display:none;"></div>
+
+      <div class="field" id="currentField">
+        <label for="currentPassword">Current password</label>
+        <input class="input" type="password" id="currentPassword" autocomplete="current-password" required>
+        <div class="field-hint">Enter your current password.</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field" id="newField">
+          <label for="newPassword">New password</label>
+          <input class="input" type="password" id="newPassword" autocomplete="new-password" required>
+          <div class="field-hint">At least 8 characters, different from your current one.</div>
+        </div>
+        <div class="field" id="confirmField">
+          <label for="confirmPassword">Confirm new password</label>
+          <input class="input" type="password" id="confirmPassword" autocomplete="new-password" required>
+          <div class="field-hint">Passwords do not match.</div>
+        </div>
+      </div>
+
+      <div class="detail-actions" style="margin-top:4px;">
+        <button type="submit" class="btn btn-primary" id="savePasswordBtn">Update Password</button>
+      </div>
+    </form>
+
+    <!-- Log out -->
     <div class="card">
-      <h2>Preview</h2>
-      <p class="card-note" style="margin-top:0;">How the plans will look on the home page.</p>
-      <div class="section-grid" id="preview" style="margin-top:14px;"></div>
-    </div>
-
-    <div class="detail-actions">
-      <button class="btn btn-primary" id="saveBtn">Save Changes</button>
-      <button class="btn btn-ghost" id="revertBtn" type="button">Revert</button>
-      <span class="card-note" id="savedNote" style="margin:0 0 0 6px;"></span>
+      <h2>Log out</h2>
+      <p style="font-size:.88rem;margin-bottom:0;">End your session on this browser.</p>
+      <div class="detail-actions">
+        <button type="button" class="btn btn-danger-outline" data-action="logout">Log Out</button>
+      </div>
     </div>
 
   </div>
@@ -125,106 +137,126 @@
   requireRole("platform_administrator");
 
   const $ = (id) => document.getElementById(id);
-  let saved = null;   // what the server last gave us, for Revert
+  let me = null;
 
-  const linesToList = (text) =>
-    text.split("\n").map((line) => line.trim()).filter(Boolean);
-
-  function fill(plans){
-    $("freeName").value = plans.free.name;
-    $("freeFeatures").value = plans.free.features.join("\n");
-    $("premiumName").value = plans.premium.name;
-    $("premiumPrice").value = plans.premium.price;
-    $("premiumFeatures").value = plans.premium.features.join("\n");
-    $("savedNote").textContent = plans.updated_at
-      ? `Last updated ${formatDateTime(plans.updated_at)}`
-      : "";
-    renderPreview();
+  function showBox(el, message){
+    el.textContent = message;
+    el.style.display = message ? "block" : "none";
   }
 
-  /** Reads the form, so the preview matches what Save would send. */
-  function current(){
-    return {
-      free: {
-        name: $("freeName").value.trim() || "Free Users",
-        price: "Free",
-        features: linesToList($("freeFeatures").value),
-      },
-      premium: {
-        name: $("premiumName").value.trim() || "Premium Users",
-        price: $("premiumPrice").value.trim(),
-        features: linesToList($("premiumFeatures").value),
-      },
-    };
-  }
-
-  function planCard(plan, showPrice){
-    return `<div class="feature-card">
-      <h4>${escapeHtml(plan.name)}</h4>
-      <ul>${plan.features.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
-      ${showPrice && plan.price ? `<h3 style="color:var(--mint);">${escapeHtml(plan.price)}</h3>` : ""}
+  function kv(label, value){
+    return `<div class="kv-item">
+      <div class="kv-label">${escapeHtml(label)}</div>
+      <div class="kv-value">${escapeHtml(value ?? "—")}</div>
     </div>`;
   }
 
-  function renderPreview(){
-    const plans = current();
-    $("preview").innerHTML = planCard(plans.free, false) + planCard(plans.premium, true);
+  // Clear a field's error as soon as it's edited.
+  document.querySelectorAll("form .input").forEach((input) => {
+    input.addEventListener("input", () => markFieldError(input.closest(".field"), false));
+  });
+
+  /* ---- Load ---- */
+
+  function renderDetails(){
+    $("accountGrid").innerHTML = [
+      kv("User ID", me.display_id),
+      kv("Email", me.email),
+      kv("User Type", me.user_type),
+      kv("Joined", formatDate(me.created_at)),
+    ].join("");
   }
-
-  document.querySelectorAll(".input, .reply-box").forEach((el) => {
-    el.addEventListener("input", () => {
-      markFieldError(el.closest(".field"), false);
-      renderPreview();
-    });
-  });
-
-  $("saveBtn").addEventListener("click", async () => {
-    $("pageError").style.display = "none";
-    const plans = current();
-
-    const checks = [
-      ["premiumPriceField", !plans.premium.price],
-      ["premiumFeaturesField", !plans.premium.features.length],
-    ];
-    checks.forEach(([id, bad]) => markFieldError($(id), bad));
-    if (!plans.free.features.length) {
-      $("pageError").textContent = "The free plan needs at least one feature.";
-      $("pageError").style.display = "block";
-      return;
-    }
-    if (checks.some(([, bad]) => bad)) return;
-
-    const btn = $("saveBtn");
-    btn.disabled = true;
-    btn.textContent = "Saving\u2026";
-
-    try {
-      saved = await Plans.update(plans);
-      fill(saved);
-      showToast("Subscription plans updated.");
-    } catch (err) {
-      $("pageError").textContent = err.message;
-      $("pageError").style.display = "block";
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Save Changes";
-    }
-  });
-
-  // Puts back whatever is currently saved, for a change thought better of.
-  $("revertBtn").addEventListener("click", () => {
-    if (saved) fill(saved);
-  });
 
   async function load(){
     try {
-      saved = await Plans.get();
-      fill(saved);
+      me = await Auth.me();
     } catch (err) {
-      $("pageError").textContent = err.message;
-      $("pageError").style.display = "block";
+      showBox($("pageError"), err.message);
+      $("accountGrid").innerHTML = "";
+      return;
     }
+    renderDetails();
+    $("firstName").value = me.first_name;
+    $("lastName").value = me.last_name;
+    updateNameButton();
   }
+
+  /* ---- Name ---- */
+
+  // Save stays disabled until the name actually differs from what's saved.
+  function updateNameButton(){
+    if (!me) return;
+    const changed =
+      $("firstName").value.trim() !== me.first_name ||
+      $("lastName").value.trim() !== me.last_name;
+    $("saveNameBtn").disabled = !changed;
+  }
+  $("firstName").addEventListener("input", updateNameButton);
+  $("lastName").addEventListener("input", updateNameButton);
+
+  $("nameForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    showBox($("nameError"), "");
+
+    const first = $("firstName").value.trim();
+    const last = $("lastName").value.trim();
+    markFieldError($("firstNameField"), !first);
+    markFieldError($("lastNameField"), !last);
+    if (!first || !last) return;
+
+    const btn = $("saveNameBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+
+    try {
+      const updated = await Auth.updateMe({ first_name: first, last_name: last });
+      me = { ...me, ...updated };
+      $("firstName").value = me.first_name;
+      $("lastName").value = me.last_name;
+      initWelcomeChip(); // refresh "Welcome, <name>" in the top bar
+      showToast("Name updated.");
+    } catch (err) {
+      showBox($("nameError"), err.message);
+    } finally {
+      btn.textContent = "Save Changes";
+      updateNameButton();
+    }
+  });
+
+  /* ---- Password ---- */
+
+  $("passwordForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    showBox($("passwordError"), "");
+
+    const current = $("currentPassword").value;
+    const next = $("newPassword").value;
+    const confirmValue = $("confirmPassword").value;
+
+    const checks = [
+      ["currentField", !current],
+      ["newField", next.length < 8 || next === current],
+      ["confirmField", !confirmValue || confirmValue !== next],
+    ];
+    checks.forEach(([id, bad]) => markFieldError($(id), bad));
+    const firstBad = checks.find(([, bad]) => bad);
+    if (firstBad) { $(firstBad[0]).querySelector(".input").focus(); return; }
+
+    const btn = $("savePasswordBtn");
+    btn.disabled = true;
+    btn.textContent = "Updating…";
+
+    try {
+      await Auth.changePassword(current, next);
+      $("passwordForm").reset();
+      showToast("Password updated.");
+    } catch (err) {
+      showBox($("passwordError"), err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Update Password";
+    }
+  });
 
   load();
 </script>
