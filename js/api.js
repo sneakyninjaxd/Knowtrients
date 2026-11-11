@@ -187,10 +187,35 @@ function requireRole(...allowedRoles) {
 /* ---- Request helper ------------------------------------- */
 
 class ApiError extends Error {
-  constructor(message, status) {
+  /**
+   * `code` is a machine-readable reason the backend can attach, e.g.
+   * "email_not_verified", so a page can react to it without matching on the
+   * wording of the message.
+   */
+  constructor(message, status, code = null) {
     super(message);
     this.status = status;
+    this.code = code;
   }
+}
+
+/**
+ * Reads the error code from the X-Error-Code header, or from the body as
+ * {"code": ...} or {"detail": {"code": ...}}. A cross-origin page can only
+ * see the header if the backend lists it in CORS expose_headers.
+ */
+function extractErrorCode(response, payload) {
+  return (
+    response.headers.get("X-Error-Code") ||
+    payload?.code ||
+    payload?.detail?.code ||
+    null
+  );
+}
+
+/** True when a login was refused because the email hasn't been verified yet. */
+function isEmailNotVerified(err) {
+  return err instanceof ApiError && err.code === "email_not_verified";
 }
 
 /**
@@ -231,7 +256,7 @@ async function apiFetch(path, options = {}) {
     }
     let detail = null;
     try { detail = await response.json(); } catch { /* no body */ }
-    throw new ApiError(extractErrorMessage(detail, 401), 401);
+    throw new ApiError(extractErrorMessage(detail, 401), 401, extractErrorCode(response, detail));
   }
 
   if (response.status === 204) return null;
@@ -244,7 +269,11 @@ async function apiFetch(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new ApiError(extractErrorMessage(payload, response.status), response.status);
+    throw new ApiError(
+      extractErrorMessage(payload, response.status),
+      response.status,
+      extractErrorCode(response, payload)
+    );
   }
 
   return payload;
@@ -255,6 +284,7 @@ function extractErrorMessage(payload, status) {
   if (!payload) return `Request failed (${status}).`;
   const detail = payload.detail;
   if (typeof detail === "string") return detail;
+  if (detail && typeof detail.message === "string") return detail.message;
   if (Array.isArray(detail) && detail.length) {
     return detail[0].msg || `Request failed (${status}).`;
   }
@@ -324,8 +354,11 @@ const Auth = {
   },
 
   /**
-   * Public sign-up for app users (register.html). The backend returns the
-   * same shape as /login, so the new user is signed in straight away.
+   * Public sign-up for app users (register.html). Two possible answers:
+   *   - { verification_required: true, ... }: a code was emailed, nobody is
+   *     signed in yet. Returns { verificationRequired: true, email }.
+   *   - the same shape as /login (verification switched off on the server):
+   *     the new user is signed in straight away. Returns { user }.
    */
   async register({ first_name, last_name, email, password }) {
     Session.clear();
@@ -334,8 +367,36 @@ const Auth = {
       body: JSON.stringify({ first_name, last_name, email, password }),
     });
 
+    if (data && data.verification_required) {
+      return { verificationRequired: true, email: data.email || email };
+    }
+
+    data.user.role = normalizeRole(data.user.role);
+    Session.save(data.access_token, data.user);
+    return { user: data.user };
+  },
+
+  /**
+   * Checks the 6-digit code emailed after sign-up. The backend answers with
+   * the same shape as /login, so the user is signed in on success.
+   */
+  async verifyEmail(email, code) {
+    Session.clear();
+    const data = await apiFetch("/verify-email", {
+      method: "POST",
+      body: JSON.stringify({ email, code }),
+    });
+    data.user.role = normalizeRole(data.user.role);
     Session.save(data.access_token, data.user);
     return data.user;
+  },
+
+  /** Emails a fresh sign-up code; the previous one stops working. */
+  async resendVerification(email) {
+    return apiFetch("/verify-email/resend", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
   },
 
   /**
@@ -735,4 +796,4 @@ function renderMessage(container, message, isError = false) {
   container.innerHTML = `<div class="empty-hint"${
     isError ? ' style="color:var(--danger);"' : ""
   }>${escapeHtml(message)}</div>`;
-}
+}

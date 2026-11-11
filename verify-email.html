@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify Email — Knowtrients</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="brand-mark">✦</span> Knowtrients</a>
+  <div class="topbar-right">
+    <a class="pill-login" href="index.html">Back to Home</a>
+  </div>
+</header>
+
+<main class="auth-wrap">
+  <form class="auth-card" id="verifyForm" novalidate>
+    <h1>Verify Your Email</h1>
+    <p class="auth-sub" id="sentTo">We've sent a 6-digit code to your email.</p>
+
+    <div id="formError" class="form-error" style="display:none;"></div>
+
+    <!-- Only shown when the page is opened without an email on record
+         (e.g. a new tab), so the visitor can type it in. -->
+    <div class="field" id="emailField" style="display:none;">
+      <label for="email">Email</label>
+      <input class="input" type="email" id="email" placeholder="example123@gmail.com"
+             autocomplete="email">
+      <div class="field-hint">Enter the email you registered with.</div>
+    </div>
+
+    <div class="field" id="codeField">
+      <label for="code">6-digit code</label>
+      <input class="input code-input" id="code" inputmode="numeric" maxlength="6"
+             autocomplete="one-time-code" placeholder="000000" required>
+      <div class="field-hint">Enter the 6 digits from your email.</div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Verify</button>
+
+    <div class="auth-alt">
+      <p>Didn't get it? <a href="#" id="resendLink">Resend code</a></p>
+      <p><a href="login.html">Back to login</a></p>
+    </div>
+  </form>
+</main>
+
+<script src="js/api.js"></script>
+<!-- Mock backend: comment the next line to use the real API -->
+<!-- <script src="js/mock-api.js"></script> -->
+<script src="js/app.js"></script>
+<script>
+  /* register.html and login.html leave the email in sessionStorage under
+     this key, so it never appears in the address bar. */
+  const VERIFY_KEY = "knowtrients_verify";
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const RESEND_COOLDOWN = 30; // seconds between resend clicks
+  const $ = (id) => document.getElementById(id);
+
+  function storedEmail(){
+    try { return (JSON.parse(sessionStorage.getItem(VERIFY_KEY)) || {}).email || ""; }
+    catch { return ""; }
+  }
+
+  let email = storedEmail();
+
+  function showError(message){
+    $("formError").textContent = message;
+    $("formError").style.display = "block";
+  }
+
+  function currentEmail(){
+    if (email) return email;
+    const typed = $("email").value.trim();
+    markFieldError($("emailField"), !EMAIL_PATTERN.test(typed));
+    return EMAIL_PATTERN.test(typed) ? typed : "";
+  }
+
+  if (email) {
+    $("sentTo").textContent = `We've sent a 6-digit code to ${email}.`;
+  } else {
+    $("emailField").style.display = "";
+    $("sentTo").textContent = "Enter your email and the 6-digit code we sent you.";
+  }
+
+  // Digits only, so a pasted code with spaces or dashes still works.
+  $("code").addEventListener("input", () => {
+    $("code").value = $("code").value.replace(/\D/g, "").slice(0, 6);
+    markFieldError($("codeField"), false);
+  });
+  $("email").addEventListener("input", () => markFieldError($("emailField"), false));
+
+  /* ---- Resend, with a short cooldown so it can't be spammed ---- */
+  let cooldownTimer = null;
+  function startCooldown(){
+    const link = $("resendLink");
+    let left = RESEND_COOLDOWN;
+    link.style.pointerEvents = "none";
+    link.style.opacity = "0.6";
+    link.textContent = `Resend code (${left}s)`;
+    clearInterval(cooldownTimer);
+    cooldownTimer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(cooldownTimer);
+        link.style.pointerEvents = "";
+        link.style.opacity = "";
+        link.textContent = "Resend code";
+      } else {
+        link.textContent = `Resend code (${left}s)`;
+      }
+    }, 1000);
+  }
+
+  async function resend(){
+    $("formError").style.display = "none";
+    const to = currentEmail();
+    if (!to) return;
+    startCooldown();
+    try {
+      await Auth.resendVerification(to);
+      showToast(`A new code has been sent to ${to}.`);
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  $("resendLink").addEventListener("click", (e) => { e.preventDefault(); resend(); });
+
+  // login.html links here with ?resend=1 for people who never verified,
+  // so a fresh code is on its way as soon as they arrive.
+  if (email && new URLSearchParams(window.location.search).get("resend") === "1") {
+    resend();
+    history.replaceState(null, "", "verify-email.html");
+  }
+
+  /* ---- Verify ---- */
+  $("verifyForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("formError").style.display = "none";
+
+    const to = currentEmail();
+    const code = $("code").value.trim();
+    markFieldError($("codeField"), !/^\d{6}$/.test(code));
+    if (!to || !/^\d{6}$/.test(code)) return;
+
+    const btn = $("submitBtn");
+    btn.disabled = true;
+    btn.textContent = "Checking…";
+
+    try {
+      // Same response as /login, so this signs them in.
+      const user = await Auth.verifyEmail(to, code);
+      sessionStorage.removeItem(VERIFY_KEY);
+      showToast("Email verified. Welcome to Knowtrients!");
+      setTimeout(() => { window.location.href = homeFor(user.role); }, 800);
+    } catch (err) {
+      showError(err.message);
+      btn.disabled = false;
+      btn.textContent = "Verify";
+    }
+  });
+</script>
+</body>
+</html>

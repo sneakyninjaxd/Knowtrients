@@ -83,6 +83,22 @@ Administrator's Feedback pages. Each request appears in exactly one queue.
 | `login.html` | App users |
 | `UAlogin.html` | Both administrator types, with an admin type picker |
 | `register.html` | Public sign-up for app users |
+| `verify-email.html` | Enter the 6-digit code emailed after sign-up |
+
+### Email verification
+
+When the backend has `REQUIRE_EMAIL_VERIFICATION` on, `POST /register`
+answers `{ "verification_required": true }` instead of a token, and
+`register.html` moves on to `verify-email.html`. That page sends
+`POST /verify-email` with `{ email, code }` and gets back the same shape as
+`/login`, so the user is signed in and lands on the download page. Its
+**Resend code** button calls `POST /verify-email/resend`.
+
+If someone who never verified tries to log in, `/login` answers 403 with
+`X-Error-Code: email_not_verified`, and `login.html` links them to the verify
+page, which emails a fresh code. The backend must list `X-Error-Code` in its
+CORS `expose_headers`, or put `"code": "email_not_verified"` in the error
+body, because the website runs on a different origin.
 
 ## Session handling
 
@@ -136,6 +152,7 @@ period. Unrated is recommendations shown that nobody rated.
 | Page | Calls |
 |---|---|
 | `register.html` | `POST /register` |
+| `verify-email.html` | `POST /verify-email`, `POST /verify-email/resend` |
 | `login.html`, `UAlogin.html` | `POST /login` |
 | `AA/dashboard.html` | `GET /admin/dashboard`, `GET /admin/requests` |
 | `AA/accounts.html` | `GET /admin/accounts` |
