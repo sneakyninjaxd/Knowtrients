@@ -109,15 +109,23 @@
     submitBtn.textContent = "Creating your account…";
 
     try {
-      // Registering signs the user in, so they land straight on the download
-      // page instead of having to log in again.
-      const user = await Auth.register({
+      const result = await Auth.register({
         first_name: $("registerFirstName").value.trim(),
         last_name: $("registerLastName").value.trim(),
         email: $("registerEmail").value.trim(),
         password: $("registerPassword").value,
       });
-      window.location.href = homeFor(user.role);
+
+      if (result.verificationRequired) {
+        // A code was emailed. The verify page reads the address from
+        // sessionStorage, so it never appears in the URL.
+        sessionStorage.setItem("knowtrients_verify", JSON.stringify({ email: result.email }));
+        window.location.href = "verify-email.html";
+        return;
+      }
+
+      // Verification is switched off on the server: already signed in.
+      window.location.href = homeFor(result.user.role);
     } catch (err) {
       errorBox.textContent = err.message;
       errorBox.style.display = "block";
@@ -127,4 +135,4 @@
   });
 </script>
 </body>
-</html>
+</html>

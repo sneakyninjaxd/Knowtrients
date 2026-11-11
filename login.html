@@ -91,7 +91,15 @@
       const user = await Auth.loginAs(ALLOWED_ROLES, email, password);
       window.location.href = homeFor(user.role);
     } catch (err) {
-      errorBox.textContent = err.message;
+      if (isEmailNotVerified(err)) {
+        // Signed up but never entered the code. Point them at the verify
+        // page; ?resend=1 makes it email a fresh code on arrival.
+        sessionStorage.setItem("knowtrients_verify", JSON.stringify({ email }));
+        errorBox.innerHTML = `${escapeHtml(err.message)} ` +
+          `<a href="verify-email.html?resend=1">Verify your email</a>`;
+      } else {
+        errorBox.textContent = err.message;
+      }
       errorBox.style.display = "block";
       submitBtn.disabled = false;
       submitBtn.textContent = "Login";
@@ -99,4 +107,4 @@
   });
 </script>
 </body>
-</html>
+</html>

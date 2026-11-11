@@ -465,6 +465,9 @@
       }
       const account = found || db.accounts.find((a) => a.role === "account_administrator" && a.is_active);
       if (!account.is_active) fail(403, "This account has been suspended.");
+      if (account.email_verified === false) {
+        throw new ApiError("Please verify your email before logging in.", 403, "email_not_verified");
+      }
       return {
         access_token: "mock-token-" + account.id,
         token_type: "bearer",
@@ -689,15 +692,38 @@
       );
       account.created_at = new Date().toISOString();
       account.password = body.password; // mock only; the real table stores a hash
+      account.email_verified = false;      // must enter the emailed code first
       db.accounts.push(account);
       save(db);
 
-      // Same shape as /login, so the page can sign them straight in.
+      // No session yet: the real backend emails a code. The mock takes any
+      // six digits on verify-email.html.
+      return { verification_required: true, email: account.email };
+    }
+
+    // POST /verify-email  (code from the sign-up email; signs the user in)
+    if (method === "POST" && route === "/verify-email") {
+      const email = (body.email || "").trim().toLowerCase();
+      const code = String(body.code || "").trim();
+      if (!/^\d{6}$/.test(code)) fail(422, "Enter the 6-digit code from your email.");
+      const account = db.accounts.find((a) => a.email.toLowerCase() === email);
+      if (!account) fail(404, "No account found with that email address.");
+      account.email_verified = true;
+      save(db);
       return {
         access_token: "mock-token-" + account.id,
         token_type: "bearer",
         user: accountSummary(account),
       };
+    }
+
+    // POST /verify-email/resend
+    if (method === "POST" && route === "/verify-email/resend") {
+      const email = (body.email || "").trim().toLowerCase();
+      const account = db.accounts.find((a) => a.email.toLowerCase() === email);
+      if (!account) fail(404, "No account found with that email address.");
+      if (account.email_verified !== false) fail(400, "This email is already verified. You can log in.");
+      return { sent: true };
     }
 
     // GET /me
@@ -928,4 +954,4 @@
     if (confirm("Restore the original mock data? Your changes will be lost.")) MockApi.reset();
   });
   document.body.appendChild(badge);
-})();
+})();
