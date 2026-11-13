@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="../media/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../media/favicon.ico" sizes="32x32">
 </head>
 <body>
 
@@ -145,13 +147,19 @@
       request.status === "resolved" ? "Reopen Request" : "Mark Resolved";
   }
 
+  /** The request's id. Falls back to the one in the address bar in case the
+      server names the field differently (e.g. request_id instead of id). */
+  function currentId(){
+    return request?.id ?? request?.request_id ?? requestId;
+  }
+
   /** Pulls the request and its messages together. */
   async function fetchAll(){
     request = await Requests.get(requestId);
     // A server that already embeds the thread saves a second round trip.
     messages = Array.isArray(request.messages)
       ? request.messages
-      : await Requests.messages(request.id);
+      : await Requests.messages(currentId());
   }
 
   async function send(resolve){
@@ -162,9 +170,15 @@
     buttons.forEach(b => b.disabled = true);
 
     try {
-      await Requests.sendMessage(request.id, body, resolve);
+      await Requests.sendMessage(currentId(), body, resolve);
       document.getElementById("replyBody").value = "";
       await fetchAll();
+      // If the server saved the reply but didn't act on "resolve", mark it
+      // resolved with the status route so the button does what it says.
+      if (resolve && request.status !== "resolved") {
+        const updated = await Requests.setStatus(currentId(), "resolved");
+        request = { ...request, ...(updated || {}), status: "resolved" };
+      }
       render();
       showToast(resolve ? "Reply sent and request resolved." : "Reply sent.");
     } catch (err) {
@@ -180,7 +194,9 @@
     buttons.forEach(b => b.disabled = true);
 
     try {
-      request = await Requests.setStatus(request.id, next);
+      const updated = await Requests.setStatus(currentId(), next);
+      // Keep the thread and any fields the status route doesn't send back.
+      request = { ...request, ...(updated || {}), status: next };
       render();
       showToast(next === "resolved" ? "Request resolved." : "Request reopened.");
     } catch (err) {
@@ -229,4 +245,4 @@
   load();
 </script>
 </body>
-</html>
+</html>
